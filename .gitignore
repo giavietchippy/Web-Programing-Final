@@ -1,0 +1,15 @@
+# dependencies
+vendor/
+node_modules/
+
+# env
+.env
+.env.*
+!.env.example
+
+# build
+dist/
+
+# junk
+.DS_Store
+Thumbs.db
