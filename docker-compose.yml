@@ -1,0 +1,63 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    environment:
+      APP_NAME: Notes
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${APP_KEY}
+      APP_URL: http://localhost:${WEB_PORT:-8080}
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MAIL_MAILER: smtp
+      MAIL_HOST: mail
+      MAIL_PORT: 1025
+      MAIL_FROM_ADDRESS: noreply@notes.local
+      MAIL_FROM_NAME: Notes
+    volumes:
+      - storage_public:/var/www/html/storage/app/public
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      - storage_public:/var/www/storage-public:ro
+    depends_on:
+      - app
+
+  mail:
+    image: axllent/mailpit
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
+
+volumes:
+  db_data:
+  storage_public:
