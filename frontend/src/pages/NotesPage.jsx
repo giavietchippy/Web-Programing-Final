@@ -7,6 +7,7 @@ import LabelManagerModal from '../components/notes/LabelManagerModal'
 import NoteEditorModal from '../components/notes/NoteEditorModal'
 import NotePasswordModal from '../components/notes/NotePasswordModal'
 import { relockNote } from '../api/notePasswords'
+import { getReceivedNotes } from '../api/noteShares'
 import NotesView from '../components/notes/NotesView'
 import SearchBox from '../components/notes/SearchBox'
 import ViewToggle from '../components/notes/ViewToggle'
@@ -17,6 +18,7 @@ import './notes.css'
 export default function NotesPage() {
   // Lưới là kiểu hiển thị mặc định (red rule)
   const [mode, setMode] = useState('grid')
+  const [section, setSection] = useState('my')
   const [notes, setNotes] = useState([])
   const [status, setStatus] = useState('loading') // loading | success | error
   const [error, setError] = useState('')
@@ -55,11 +57,14 @@ export default function NotesPage() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchNotes({ query: debouncedQuery, labelIds: selectedLabelIds, signal: controller.signal })
+    const loader = section === 'my'
+      ? fetchNotes({ query: debouncedQuery, labelIds: selectedLabelIds, signal: controller.signal })
+      : getReceivedNotes({ query: debouncedQuery, signal: controller.signal })
+    loader
       .then((data) => {
         setNotes(data)
         setFetchedQuery(debouncedQuery)
-        setFetchedHasLabels(selectedLabelIds.length > 0)
+        setFetchedHasLabels(section === 'my' && selectedLabelIds.length > 0)
         setStatus('success')
       })
       .catch((err) => {
@@ -69,7 +74,7 @@ export default function NotesPage() {
       })
     // Hủy request cũ khi bộ lọc đổi để kết quả cũ không ghi đè kết quả mới
     return () => controller.abort()
-  }, [debouncedQuery, selectedLabelIds, reloadKey])
+  }, [debouncedQuery, selectedLabelIds, reloadKey, section])
 
   const retry = () => {
     setStatus('loading')
@@ -92,6 +97,7 @@ export default function NotesPage() {
   const upsertNote = (saved) => {
     const summary = toSummary(saved)
     setNotes((prev) => {
+      if (section === 'shared') return prev.map((n) => n.id === summary.id ? summary : n)
       const exists = prev.some((n) => n.id === summary.id)
       return sortNotes(exists ? prev.map((n) => (n.id === summary.id ? summary : n)) : [summary, ...prev])
     })
@@ -115,6 +121,7 @@ export default function NotesPage() {
   }
 
   const togglePin = async (note) => {
+    if (section === 'shared') return
     if (note.is_locked && !note.is_unlocked) {
       setUnlockTarget({ noteId: note.id, action: 'pin', note })
       return
@@ -137,7 +144,18 @@ export default function NotesPage() {
 
   return (
     <Container className="py-4" >
-      <h1 className="h3 mb-3">Ghi chú của tôi</h1>
+      <h1 className="h3 mb-3">{section === 'my' ? 'Ghi chú của tôi' : 'Shared with Me — Được chia sẻ'}</h1>
+      <div className="d-flex gap-2 mb-3">
+        <Button variant={section === 'my' ? 'primary' : 'outline-primary'} onClick={() => {
+          setSection('my'); setStatus('loading'); setQuery('')
+        }}>Ghi chú của tôi</Button>
+        <Button variant={section === 'shared' ? 'primary' : 'outline-primary'} onClick={() => {
+          setSection('shared'); setStatus('loading'); setQuery('')
+        }}>Shared with Me</Button>
+      </div>
+      {section === 'shared' && notes.some((n) => n.is_new) && (
+        <Alert variant="info">Bạn có {notes.filter((n) => n.is_new).length} ghi chú mới được chia sẻ. Chọn một ghi chú để xem.</Alert>
+      )}
 
       <div className="d-flex flex-wrap gap-2 mb-3">
         <div className="flex-grow-1" style={{ minWidth: '12rem' }}>
@@ -145,7 +163,7 @@ export default function NotesPage() {
         </div>
         <div className="d-flex gap-2">
           {/* Từ tablet trở lên: nút trên thanh công cụ; điện thoại dùng nút nổi bên dưới */}
-          <Button
+          {section === 'my' && <Button
             variant="primary"
             className="d-none d-md-inline-flex align-items-center"
             disabled={status === 'loading'}
@@ -153,18 +171,18 @@ export default function NotesPage() {
           >
             <i className="bi bi-plus-lg me-1" aria-hidden="true" />
             Ghi chú mới
-          </Button>
+          </Button>}
           <ViewToggle mode={mode} onChange={setMode} />
         </div>
       </div>
 
-      <LabelFilter
+      {section === 'my' && <LabelFilter
         labels={labels}
         selectedIds={selectedLabelIds}
         onToggle={toggleLabelFilter}
         onClear={() => setSelectedLabelIds([])}
         onManage={() => setShowLabelManager(true)}
-      />
+      />}
 
       {actionError && (
         <Alert variant="danger" dismissible onClose={() => setActionError('')}>
@@ -198,7 +216,7 @@ export default function NotesPage() {
           ) : (
             <>
               <i className="bi bi-journal-text fs-1" aria-hidden="true" />
-              <p className="mt-2">Chưa có ghi chú nào. Bấm “Ghi chú mới” để bắt đầu.</p>
+              <p className="mt-2">{section === 'my' ? 'Chưa có ghi chú nào. Bấm “Ghi chú mới” để bắt đầu.' : 'Chưa có ghi chú nào được chia sẻ cho bạn.'}</p>
             </>
           )}
         </div>
@@ -219,7 +237,7 @@ export default function NotesPage() {
         {status === 'success' && isFiltering ? `Tìm thấy ${notes.length} ghi chú` : ''}
       </div>
 
-      <Button
+      {section === 'my' && <Button
         variant="primary"
         className="fab-new d-md-none shadow"
         aria-label="Ghi chú mới"
@@ -228,7 +246,7 @@ export default function NotesPage() {
         onClick={() => setEditor({ noteId: null })}
       >
         <i className="bi bi-plus-lg fs-4" aria-hidden="true" />
-      </Button>
+      </Button>}
 
       {unlockTarget && (
         <NotePasswordModal
@@ -259,7 +277,7 @@ export default function NotesPage() {
           noteId={editor.noteId}
           labels={labels}
           onClose={closeEditor}
-          onSaved={upsertNote}
+          onSaved={section === 'my' ? upsertNote : () => setReloadKey((k) => k + 1)}
           onDeleted={removeNote}
         />
       )}

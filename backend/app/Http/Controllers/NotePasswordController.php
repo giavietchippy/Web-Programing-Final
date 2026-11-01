@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Note;
 use App\Services\NoteLockService;
+use App\Services\NoteAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -34,7 +35,7 @@ class NotePasswordController extends Controller
 
     public function unlock(Request $request, int $note): JsonResponse
     {
-        $record = $this->owned($request, $note);
+        $record = NoteAccessService::readable($request, $note);
         abort_if($record->password_hash === null, 409, 'Ghi chú này không có mật khẩu.');
         $data = $request->validate(['password' => ['required', 'string']]);
 
@@ -48,7 +49,7 @@ class NotePasswordController extends Controller
 
     public function relock(Request $request, int $note): JsonResponse
     {
-        $record = $this->owned($request, $note);
+        $record = NoteAccessService::readable($request, $note);
         NoteLockService::forget($request, $record);
         return response()->json(['is_unlocked' => $record->password_hash === null]);
     }

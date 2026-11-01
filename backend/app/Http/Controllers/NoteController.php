@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\ResolvesCurrentUser;
 use App\Models\Note;
 use App\Services\NoteLockService;
+use App\Services\NoteAccessService;
+use App\Services\NotePresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class NoteController extends Controller
@@ -32,7 +33,8 @@ class NoteController extends Controller
 
         $query = Note::query()
             ->where('user_id', $this->currentUserId($request))
-            ->with('labels:id,name');
+            ->with('labels:id,name')
+            ->withCount('shares');
 
         // Chỉ được tìm theo nội dung của ghi chú không khóa hoặc đã mở khóa trong phiên.
         $unlockedIds = Note::query()
@@ -71,7 +73,7 @@ class NoteController extends Controller
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->get()
-            ->map(fn (Note $note) => $this->present($request, $note));
+            ->map(fn (Note $note) => NotePresenter::present($request, $note));
 
         return response()->json(['data' => $notes]);
     }
@@ -80,7 +82,7 @@ class NoteController extends Controller
     public function show(Request $request, int $note): JsonResponse
     {
         return response()->json([
-            'data' => $this->present($request, $this->findOwnedAndUnlocked($request, $note), true),
+            'data' => NotePresenter::present($request, $this->findReadableAndUnlocked($request, $note), true),
         ]);
     }
 
@@ -92,16 +94,16 @@ class NoteController extends Controller
             'user_id' => $this->currentUserId($request),
         ]);
 
-        return response()->json(['data' => $this->present($request, $note, true)], 201);
+        return response()->json(['data' => NotePresenter::present($request, $note, true)], 201);
     }
 
     // Cập nhật ghi chú (được gọi liên tục bởi auto-save)
     public function update(Request $request, int $note): JsonResponse
     {
-        $record = $this->findOwnedAndUnlocked($request, $note);
+        $record = $this->findEditableAndUnlocked($request, $note);
         $record->update($this->validated($request));
 
-        return response()->json(['data' => $this->present($request, $record, true)]);
+        return response()->json(['data' => NotePresenter::present($request, $record, true)]);
     }
 
     // Ghim hoặc bỏ ghim ghi chú
@@ -122,7 +124,7 @@ class NoteController extends Controller
         $record->pinned_at = $data['pinned'] ? ($record->pinned_at ?? now()) : null;
         $record->save();
 
-        return response()->json(['data' => $this->present($request, $record)]);
+        return response()->json(['data' => NotePresenter::present($request, $record)]);
     }
 
     // Đặt toàn bộ nhãn của ghi chú (mảng rỗng = gỡ hết nhãn)
@@ -145,7 +147,7 @@ class NoteController extends Controller
         $record->labels()->sync($data['label_ids']);
         $record->load('labels');
 
-        return response()->json(['data' => $this->present($request, $record)]);
+        return response()->json(['data' => NotePresenter::present($request, $record)]);
     }
 
     public function destroy(Request $request, int $note): Response
@@ -168,46 +170,25 @@ class NoteController extends Controller
         ]);
     }
 
-    // Chỉ cho phép thao tác trên ghi chú của chính người dùng, không thấy thì trả 404
-    private function findOwned(Request $request, int $id): Note
+    // Xem: owner, editor hoặc viewer; chỉnh sửa: chỉ owner hoặc editor.
+    private function findReadableAndUnlocked(Request $request, int $id): Note
     {
-        return Note::query()
-            ->where('user_id', $this->currentUserId($request))
-            ->findOrFail($id);
-    }
-
-    private function findOwnedAndUnlocked(Request $request, int $id): Note
-    {
-        $record = $this->findOwned($request, $id);
+        $record = NoteAccessService::readable($request, $id);
         NoteLockService::requireUnlocked($request, $record);
         return $record;
     }
 
-    private function present(Request $request, Note $note, bool $withContent = false): array
+    private function findEditableAndUnlocked(Request $request, int $id): Note
     {
-        $note->loadMissing('labels:id,name');
-        $unlocked = NoteLockService::isUnlocked($request, $note);
+        $record = NoteAccessService::editable($request, $id);
+        NoteLockService::requireUnlocked($request, $record);
+        return $record;
+    }
 
-        $data = [
-            'id' => $note->id,
-            'title' => $note->title,
-            'preview' => $unlocked ? Str::limit(trim($note->content), 300) : '',
-            'is_locked' => $note->password_hash !== null,
-            'is_unlocked' => $unlocked,
-            'is_shared' => false,
-            'is_pinned' => $note->pinned_at !== null,
-            'pinned_at' => $note->pinned_at,
-            'labels' => $note->labels
-                ->map(fn ($label) => ['id' => $label->id, 'name' => $label->name])
-                ->values(),
-            'created_at' => $note->created_at,
-            'updated_at' => $note->updated_at,
-        ];
-
-        if ($withContent && $unlocked) {
-            $data['content'] = $note->content;
-        }
-
-        return $data;
+    private function findOwnedAndUnlocked(Request $request, int $id): Note
+    {
+        $record = NoteAccessService::owner($request, $id);
+        NoteLockService::requireUnlocked($request, $record);
+        return $record;
     }
 }

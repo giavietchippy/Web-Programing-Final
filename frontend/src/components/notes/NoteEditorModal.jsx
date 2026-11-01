@@ -5,6 +5,8 @@ import ConfirmDeleteModal from './ConfirmDeleteModal'
 import LabelPicker from './LabelPicker'
 import NotePasswordModal from './NotePasswordModal'
 import { relockNote } from '../../api/notePasswords'
+import { markSharedNoteSeen } from '../../api/noteShares'
+import ShareNoteModal from './ShareNoteModal'
 
 // Thời gian chờ sau lần gõ cuối cùng trước khi tự lưu
 const AUTOSAVE_DELAY = 800
@@ -27,6 +29,8 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
   const [labelError, setLabelError] = useState('')
   const [isLocked, setIsLocked] = useState(false)
   const [passwordMode, setPasswordMode] = useState(null)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [permission, setPermission] = useState('owner')
 
   // Dùng ref để auto-save luôn đọc được dữ liệu mới nhất mà không bị closure cũ
   const idRef = useRef(noteId)
@@ -56,6 +60,8 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
         setContent(note.content)
         setLabelIds(note.labels.map((l) => l.id))
         setIsLocked(note.is_locked)
+        setPermission(note.permission ?? 'owner')
+        if (note.permission !== 'owner') markSharedNoteSeen(note.id).catch(() => {})
         setLoadStatus('ready')
       })
       .catch((err) => {
@@ -118,6 +124,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
   }
 
   const handleTitleChange = (e) => {
+    if (permission === 'view') return
     const value = e.target.value
     setTitle(value)
     latestRef.current = { ...latestRef.current, title: value }
@@ -125,6 +132,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
   }
 
   const handleContentChange = (e) => {
+    if (permission === 'view') return
     const value = e.target.value
     setContent(value)
     latestRef.current = { ...latestRef.current, content: value }
@@ -163,6 +171,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
 
     try {
       const id = idRef.current
+      if (permission !== 'owner') throw new Error('Chỉ chủ sở hữu được xóa ghi chú.')
       await deleteNote(id)
       onDeleted(id)
       onClose()
@@ -210,6 +219,11 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
         </Modal.Header>
 
         <Modal.Body>
+          {loadStatus === 'ready' && permission !== 'owner' && (
+            <Alert variant={permission === 'edit' ? 'info' : 'secondary'}>
+              Ghi chú được chia sẻ — {permission === 'edit' ? 'Bạn có quyền chỉnh sửa' : 'Bạn chỉ có quyền xem'}.
+            </Alert>
+          )}
           {loadStatus === 'loading' && (
             <div className="text-center py-5" role="status">
               <Spinner animation="border" />
@@ -227,6 +241,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
                 aria-label="Tiêu đề"
                 maxLength={255}
                 value={title}
+                disabled={permission === 'view'}
                 onChange={handleTitleChange}
                 autoFocus={!noteId}
               />
@@ -237,16 +252,17 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
                 placeholder="Nội dung"
                 aria-label="Nội dung"
                 value={content}
+                disabled={permission === 'view'}
                 onChange={handleContentChange}
               />
-              <LabelPicker
+              {permission === 'owner' && <LabelPicker
                 labels={labels}
                 selectedIds={labelIds}
                 disabled={!currentId}
                 busy={labelBusy}
                 error={labelError}
                 onToggle={handleToggleLabel}
-              />
+              />}
             </Form>
           )}
         </Modal.Body>
@@ -258,8 +274,13 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
           >
             {statusText}
           </span>
-          {currentId && (
+          {currentId && permission === 'owner' && (
             <>
+              <Button variant="outline-primary" onClick={async () => {
+                clearTimeout(timerRef.current)
+                await persist()
+                if (!failedRef.current && !invalidRef.current) setShareOpen(true)
+              }}><i className="bi bi-people me-1" />Chia sẻ</Button>
               {!isLocked ? (
                 <Button variant="outline-secondary" onClick={async () => {
                   clearTimeout(timerRef.current)
@@ -276,7 +297,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
               )}
             </>
           )}
-          {currentId && (
+          {currentId && permission === 'owner' && (
             <Button variant="outline-danger" onClick={() => setConfirmOpen(true)}>
               <i className="bi bi-trash me-1" aria-hidden="true" />
               Xóa
@@ -301,6 +322,13 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
             setPasswordMode(null)
           }}
         />
+      )}
+      {shareOpen && currentId && (
+        <ShareNoteModal noteId={currentId} onClose={() => setShareOpen(false)}
+          onChanged={async () => {
+            const updated = await getNote(currentId)
+            onSavedRef.current(updated)
+          }} />
       )}
       <ConfirmDeleteModal
         show={confirmOpen}
