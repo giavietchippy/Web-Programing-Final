@@ -31,8 +31,16 @@ async function request(url, { method = 'GET', body, signal } = {}) {
   return json
 }
 
-export async function fetchNotes(signal) {
-  const json = await request('/api/notes', { signal })
+// Lấy danh sách ghi chú; có từ khóa thì server lọc theo tiêu đề và nội dung
+export async function fetchNotes({ query = '', signal } = {}) {
+  const qs = query ? `?q=${encodeURIComponent(query)}` : ''
+  const json = await request(`/api/notes${qs}`, { signal })
+  return json.data
+}
+
+// Ghim (pinned = true) hoặc bỏ ghim (pinned = false)
+export async function setNotePinned(id, pinned) {
+  const json = await request(`/api/notes/${id}/pin`, { method: 'PATCH', body: { pinned } })
   return json.data
 }
 

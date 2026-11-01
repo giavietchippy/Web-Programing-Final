@@ -22,8 +22,46 @@
   min-width: 0;
 }
 
-.note-clickable {
+/* Wrapper chỉ để gắn key, không ảnh hưởng bố cục danh sách */
+.contents {
+  display: contents;
+}
+
+/* Tiêu đề là nút thật; stretched-link biến cả thẻ/dòng thành vùng bấm */
+.note-open {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+}
+
+.note-open:focus-visible {
+  outline: none;
+}
+
+.note-open:focus-visible::after {
+  outline: 2px solid var(--bs-primary);
+  outline-offset: -2px;
+}
+
+/* Các phần tử này nằm trên vùng bấm của stretched-link để vẫn bấm/hover riêng được */
+.note-above {
+  position: relative;
+  z-index: 2;
+}
+
+/* Vùng chạm tối thiểu cho màn hình cảm ứng */
+.note-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
 }
 
 /* Lớp nền của hộp thoại xác nhận xóa phải nằm trên modal editor (z-index 1055) */
