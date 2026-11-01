@@ -14,8 +14,10 @@ Route::prefix('api')->group(function () {
     Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verify'])
         ->middleware('signed')
         ->name('verification.verify');
+    Route::put('/password', [AuthController::class, 'changePassword'])
+       ->middleware(['auth', 'auth.session']);
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', fn (Request $request) => $request->user())->middleware('auth');
+    Route::get('/user', fn (Request $request) => $request->user())->middleware(['auth', 'auth.session']);
 });

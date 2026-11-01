@@ -111,4 +111,22 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Password has been reset.']);
     }
+    public function changePassword(Request $request)
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+        $user->update(['password' => $data['password']]);
+
+        // End the user's other sessions (other browsers/devices).
+        Auth::logoutOtherDevices($data['password']);
+
+        // New session ID for this browser, so it stays logged in.
+        $request->session()->regenerate();
+
+        return response()->json(['message' => 'Password updated.']);
+    }
 }
