@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\LabelController;
 use App\Http\Controllers\NoteController;
+use App\Http\Controllers\NotePasswordController;
 use Illuminate\Support\Facades\Route;
 
 // TODO: khi Member 1 merge Sanctum, bọc nhóm route này bằng middleware 'auth:sanctum'

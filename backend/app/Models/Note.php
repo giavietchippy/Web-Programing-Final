@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Note extends Model
 {
     protected $fillable = ['user_id', 'title', 'content'];
-
+    protected $hidden = ['password_hash'];
     protected function casts(): array
     {
         return ['pinned_at' => 'datetime'];
