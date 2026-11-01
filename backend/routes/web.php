@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Http\Request;
+use App\Http\Controllers\PreferencesController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -22,5 +23,7 @@ Route::prefix('api')->group(function () {
     Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::put('/preferences', [PreferencesController::class, 'update'])
+        ->middleware(['auth', 'auth.session']);
     Route::get('/user', fn (Request $request) => $request->user())->middleware(['auth', 'auth.session']);
 });

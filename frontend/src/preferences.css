@@ -1,0 +1,72 @@
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+  --app-bg: #ffffff;
+  --app-surface: #f3f4f6;
+  --app-text: #1f2937;
+  --app-link: #2f4bd1;
+  --app-border: #d1d5db;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --app-bg: #121418;
+  --app-surface: #1d2027;
+  --app-text: #e8eaed;
+  --app-link: #8fa8ff;
+  --app-border: #3a3f49;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--app-text);
+}
+
+a {
+  color: var(--app-link);
+}
+
+/* Note variables. Member 2's note cards and editor must read these. */
+:root {
+  --note-bg: var(--app-surface);
+  --note-text: var(--app-text);
+  --note-font-size: 1rem;
+}
+
+[data-note-color='default'] {
+  --note-bg: var(--app-surface);
+  --note-text: var(--app-text);
+}
+[data-note-color='yellow'] {
+  --note-bg: #fff3b0;
+  --note-text: #1f2937;
+}
+[data-note-color='green'] {
+  --note-bg: #c9f0d1;
+  --note-text: #1f2937;
+}
+[data-note-color='blue'] {
+  --note-bg: #cfe3ff;
+  --note-text: #1f2937;
+}
+[data-note-color='pink'] {
+  --note-bg: #ffd3e0;
+  --note-text: #1f2937;
+}
+
+[data-font-size='small'] {
+  --note-font-size: 0.875rem;
+}
+[data-font-size='medium'] {
+  --note-font-size: 1rem;
+}
+[data-font-size='large'] {
+  --note-font-size: 1.25rem;
+}
