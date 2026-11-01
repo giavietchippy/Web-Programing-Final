@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
 export default function LoginPage() {
   const { user, loading, login } = useAuth()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -31,6 +32,9 @@ export default function LoginPage() {
   return (
     <main style={{ maxWidth: 360, margin: '4rem auto', padding: '0 1rem' }}>
       <h1>Log in</h1>
+      {location.state?.message && (
+        <p role="status">{location.state.message}</p>
+      )}
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="email" style={{ display: 'block' }}>
@@ -65,6 +69,9 @@ export default function LoginPage() {
           {submitting ? 'Logging in...' : 'Log in'}
         </button>
       </form>
+      <p>
+        <Link to="/forgot-password">Forgot password?</Link>
+      </p>
       <p>
         No account? <Link to="/register">Create an account</Link>
       </p>
