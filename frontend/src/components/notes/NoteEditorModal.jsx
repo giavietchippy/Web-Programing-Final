@@ -188,7 +188,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
 
   return (
     <>
-      <Modal show onHide={handleClose} size="lg" fullscreen="sm-down" scrollable>
+      <Modal show onHide={handleClose} size="lg" fullscreen="md-down" scrollable>
         <Modal.Header closeButton>
           <Modal.Title as="h2" className="h5">
             {noteId ? 'Chỉnh sửa ghi chú' : 'Ghi chú mới'}
@@ -218,10 +218,10 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
               />
               <Form.Control
                 as="textarea"
-                rows={10}
+                rows={8}
+                className="note-editor-textarea"
                 placeholder="Nội dung"
                 aria-label="Nội dung"
-                style={{ resize: 'vertical' }}
                 value={content}
                 onChange={handleContentChange}
               />
