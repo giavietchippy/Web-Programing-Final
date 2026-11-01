@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap'
-import { createNote, deleteNote, getNote, updateNote } from '../../api/notes'
+import { createNote, deleteNote, getNote, setNoteLabels, updateNote } from '../../api/notes'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
+import LabelPicker from './LabelPicker'
 
 // Thời gian chờ sau lần gõ cuối cùng trước khi tự lưu
 const AUTOSAVE_DELAY = 800
 
 // Màn hình DUY NHẤT cho cả thêm mới (noteId = null) và chỉnh sửa
-export default function NoteEditorModal({ noteId, onClose, onSaved, onDeleted }) {
+export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDeleted }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [loadStatus, setLoadStatus] = useState(noteId ? 'loading' : 'ready')
@@ -19,6 +20,9 @@ export default function NoteEditorModal({ noteId, onClose, onSaved, onDeleted })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [labelIds, setLabelIds] = useState([])
+  const [labelBusy, setLabelBusy] = useState(false)
+  const [labelError, setLabelError] = useState('')
 
   // Dùng ref để auto-save luôn đọc được dữ liệu mới nhất mà không bị closure cũ
   const idRef = useRef(noteId)
@@ -46,6 +50,7 @@ export default function NoteEditorModal({ noteId, onClose, onSaved, onDeleted })
         savedRef.current = { title: note.title, content: note.content }
         setTitle(note.title)
         setContent(note.content)
+        setLabelIds(note.labels.map((l) => l.id))
         setLoadStatus('ready')
       })
       .catch((err) => {
@@ -154,6 +159,24 @@ export default function NoteEditorModal({ noteId, onClose, onSaved, onDeleted })
     }
   }
 
+  const handleToggleLabel = async (labelId) => {
+    const next = labelIds.includes(labelId)
+      ? labelIds.filter((id) => id !== labelId)
+      : [...labelIds, labelId]
+
+    setLabelBusy(true)
+    setLabelError('')
+    try {
+      const updated = await setNoteLabels(idRef.current, next)
+      setLabelIds(updated.labels.map((l) => l.id))
+      onSavedRef.current(updated) // cập nhật nhãn trên danh sách ngay
+    } catch (err) {
+      setLabelError(err.message)
+    } finally {
+      setLabelBusy(false)
+    }
+  }
+
   const statusText = {
     idle: '',
     pending: 'Đang chờ lưu...',
@@ -201,6 +224,14 @@ export default function NoteEditorModal({ noteId, onClose, onSaved, onDeleted })
                 style={{ resize: 'vertical' }}
                 value={content}
                 onChange={handleContentChange}
+              />
+              <LabelPicker
+                labels={labels}
+                selectedIds={labelIds}
+                disabled={!currentId}
+                busy={labelBusy}
+                error={labelError}
+                onToggle={handleToggleLabel}
               />
             </Form>
           )}

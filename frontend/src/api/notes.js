@@ -1,46 +1,13 @@
-// Đọc cookie theo tên (dùng cho XSRF-TOKEN của Sanctum SPA sau này)
-function readCookie(name) {
-  const row = document.cookie.split('; ').find((r) => r.startsWith(`${name}=`))
-  return row ? decodeURIComponent(row.split('=')[1]) : null
-}
+import { request } from './http'
 
-// Gọi API JSON; ném Error với thông báo tiếng Việt từ server khi thất bại
-async function request(url, { method = 'GET', body, signal } = {}) {
-  const headers = { Accept: 'application/json' }
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+// Lấy danh sách ghi chú; server lọc theo từ khóa (tiêu đề + nội dung) và theo nhãn
+export async function fetchNotes({ query = '', labelIds = [], signal } = {}) {
+  const params = new URLSearchParams()
+  if (query) params.set('q', query)
+  labelIds.forEach((id) => params.append('labels[]', id))
+  const qs = params.toString()
 
-  // Nếu có cookie XSRF (khi Member 1 bật Sanctum SPA) thì tự gửi kèm header
-  const xsrf = readCookie('XSRF-TOKEN')
-  if (xsrf) headers['X-XSRF-TOKEN'] = xsrf
-
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    signal,
-    credentials: 'same-origin',
-  })
-
-  if (res.status === 204) return null
-
-  const json = await res.json().catch(() => null)
-  if (!res.ok) {
-    const firstFieldError = json?.errors ? Object.values(json.errors)[0]?.[0] : null
-    throw new Error(firstFieldError || json?.message || `Có lỗi xảy ra (HTTP ${res.status})`)
-  }
-  return json
-}
-
-// Lấy danh sách ghi chú; có từ khóa thì server lọc theo tiêu đề và nội dung
-export async function fetchNotes({ query = '', signal } = {}) {
-  const qs = query ? `?q=${encodeURIComponent(query)}` : ''
-  const json = await request(`/api/notes${qs}`, { signal })
-  return json.data
-}
-
-// Ghim (pinned = true) hoặc bỏ ghim (pinned = false)
-export async function setNotePinned(id, pinned) {
-  const json = await request(`/api/notes/${id}/pin`, { method: 'PATCH', body: { pinned } })
+  const json = await request(`/api/notes${qs ? `?${qs}` : ''}`, { signal })
   return json.data
 }
 
@@ -61,4 +28,19 @@ export async function updateNote(id, { title, content }) {
 
 export async function deleteNote(id) {
   await request(`/api/notes/${id}`, { method: 'DELETE' })
+}
+
+// Ghim (pinned = true) hoặc bỏ ghim (pinned = false)
+export async function setNotePinned(id, pinned) {
+  const json = await request(`/api/notes/${id}/pin`, { method: 'PATCH', body: { pinned } })
+  return json.data
+}
+
+// Đặt toàn bộ nhãn của một ghi chú
+export async function setNoteLabels(id, labelIds) {
+  const json = await request(`/api/notes/${id}/labels`, {
+    method: 'PUT',
+    body: { label_ids: labelIds },
+  })
+  return json.data
 }
