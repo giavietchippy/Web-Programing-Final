@@ -6,11 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Note extends Model
 {
     protected $fillable = ['user_id', 'title', 'content'];
-    protected $hidden = ['password_hash'];
+    protected $hidden = ['password_hash', 'realtime_key'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Note $note) {
+            $note->realtime_key ??= Str::random(32);
+        });
+    }
 
     protected function casts(): array
     {

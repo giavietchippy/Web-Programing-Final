@@ -45,7 +45,11 @@ class NotePresenter
             'updated_at' => $note->updated_at,
         ];
 
-        if ($full && $unlocked) $result['content'] = $note->content;
+        if ($full && $unlocked) {
+            $result['content'] = $note->content;
+            $result['content_version'] = (int) $note->content_version;
+            $result['realtime_key'] = $note->realtime_key;
+        }
         return $result;
     }
 }

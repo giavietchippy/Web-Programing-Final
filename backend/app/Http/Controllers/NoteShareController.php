@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\NoteShare;
+use App\Events\NoteAccessChanged;
+use Illuminate\Support\Str;
 use App\Models\User;
 use App\Services\NoteAccessService;
 use App\Services\NoteLockService;
@@ -90,6 +92,8 @@ class NoteShareController extends Controller
             $share->permission = $data['permission'];
             $share->seen_at = null;
             $share->save();
+            // Đổi phòng WebSocket khi quyền thay đổi; client cũ phải xác thực lại.
+            $this->resetRealtimeRoom($record);
         }
         $share->load('recipient:id,name,email');
         return response()->json(['data' => $this->formatRecipient($share)]);
@@ -100,6 +104,7 @@ class NoteShareController extends Controller
         $record = $this->ownedUnlocked($request, $note);
         $share = $record->shares()->where('user_id', $user)->firstOrFail();
         $share->delete();
+        $this->resetRealtimeRoom($record);
         return response()->json(['message' => 'Đã thu hồi quyền truy cập.']);
     }
 
@@ -119,6 +124,15 @@ class NoteShareController extends Controller
         $record = NoteAccessService::owner($request, $id);
         NoteLockService::requireUnlocked($request, $record);
         return $record;
+    }
+
+    private function resetRealtimeRoom(\App\Models\Note $note): void
+    {
+        $oldKey = $note->realtime_key;
+        $note->realtime_key = Str::random(32);
+        $note->timestamps = false;
+        $note->save();
+        event(new NoteAccessChanged($note->id, $oldKey));
     }
 
     private function formatRecipient(NoteShare $share): array

@@ -1,5 +1,7 @@
 FROM node:lts AS build
 WORKDIR /app
+ARG VITE_REVERB_APP_KEY=notes-local-key
+ENV VITE_REVERB_APP_KEY=$VITE_REVERB_APP_KEY
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./

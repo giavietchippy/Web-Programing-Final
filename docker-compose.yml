@@ -36,22 +36,50 @@ services:
       MAIL_PORT: 1025
       MAIL_FROM_ADDRESS: noreply@notes.local
       MAIL_FROM_NAME: Notes
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-notes-local}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-notes-local-key}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-notes-local-secret-change-this}
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
     volumes:
       - storage_public:/var/www/html/storage/app/public
     depends_on:
       db:
         condition: service_healthy
 
+  reverb:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    environment:
+      APP_NAME: Notes
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: ${APP_KEY}
+      REVERB_APP_ID: ${REVERB_APP_ID:-notes-local}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-notes-local-key}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-notes-local-secret-change-this}
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+    entrypoint: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    depends_on:
+      - app
+
   web:
     build:
       context: .
       dockerfile: docker/web/Dockerfile
+      args:
+        VITE_REVERB_APP_KEY: ${REVERB_APP_KEY:-notes-local-key}
     ports:
       - "${WEB_PORT:-8080}:80"
     volumes:
       - storage_public:/var/www/storage-public:ro
     depends_on:
       - app
+      - reverb
 
   mail:
     image: axllent/mailpit

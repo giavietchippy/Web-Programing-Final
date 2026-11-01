@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ResolvesCurrentUser;
 use App\Models\Note;
+use App\Events\NoteChanged;
 use App\Services\NoteLockService;
 use App\Services\NoteAccessService;
 use App\Services\NotePresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class NoteController extends Controller
@@ -100,8 +102,37 @@ class NoteController extends Controller
     // Cập nhật ghi chú (được gọi liên tục bởi auto-save)
     public function update(Request $request, int $note): JsonResponse
     {
-        $record = $this->findEditableAndUnlocked($request, $note);
-        $record->update($this->validated($request));
+        $data = $this->validated($request);
+        // version là tuỳ chọn để không phá các test/client REST cũ;
+        // editor realtime luôn gửi version để chống ghi đè ngoài ý muốn.
+        $sync = $request->validate([
+            'content_version' => ['sometimes', 'required', 'integer', 'min:0'],
+            'client_id' => ['nullable', 'uuid'],
+        ]);
+
+        $record = DB::transaction(function () use ($request, $note, $data, $sync) {
+            $record = $this->findEditableAndUnlocked($request, $note);
+            $record = Note::query()->whereKey($record->id)->lockForUpdate()->firstOrFail();
+            // Kiểm tra lại sau khi lock database, phòng quyền vừa bị thu hồi.
+            $record = $this->findEditableAndUnlocked($request, $record->id);
+            if (isset($sync['content_version'])
+                && (int) $sync['content_version'] !== (int) $record->content_version) {
+                abort(409, 'Ghi chú đã có thay đổi từ người khác. Hãy tải phiên bản mới.');
+            }
+            if ($record->title !== $data['title'] || $record->content !== $data['content']) {
+                $record->title = $data['title'];
+                $record->content = $data['content'];
+                $record->content_version = (int) $record->content_version + 1;
+                $record->save();
+            }
+            return $record;
+        });
+
+        event(new NoteChanged(
+            $record->id, $record->realtime_key, $record->title, $record->content,
+            (int) $record->content_version, (int) $request->user()->id,
+            $sync['client_id'] ?? null,
+        ));
 
         return response()->json(['data' => NotePresenter::present($request, $record, true)]);
     }

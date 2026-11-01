@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Note;
+use App\Events\NoteAccessChanged;
+use Illuminate\Support\Str;
 use App\Services\NoteLockService;
 use App\Services\NoteAccessService;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +31,7 @@ class NotePasswordController extends Controller
         $record->timestamps = false;
         $record->save();
         NoteLockService::markUnlocked($request, $record);
+        $this->rotateRoom($record);
 
         return response()->json(['is_locked' => true, 'is_unlocked' => true]);
     }
@@ -51,6 +54,7 @@ class NotePasswordController extends Controller
     {
         $record = NoteAccessService::readable($request, $note);
         NoteLockService::forget($request, $record);
+        $this->rotateRoom($record);
         return response()->json(['is_unlocked' => $record->password_hash === null]);
     }
 
@@ -70,6 +74,7 @@ class NotePasswordController extends Controller
         $record->timestamps = false;
         $record->save();
         NoteLockService::markUnlocked($request, $record);
+        $this->rotateRoom($record);
         return response()->json(['is_locked' => true, 'is_unlocked' => true]);
     }
 
@@ -86,6 +91,15 @@ class NotePasswordController extends Controller
         $record->timestamps = false;
         $record->save();
         NoteLockService::forget($request, $record);
+        $this->rotateRoom($record);
         return response()->json(['is_locked' => false, 'is_unlocked' => true]);
+    }
+    private function rotateRoom(Note $note): void
+    {
+        $previous = $note->realtime_key;
+        $note->realtime_key = Str::random(32);
+        $note->timestamps = false;
+        $note->save();
+        event(new NoteAccessChanged($note->id, $previous));
     }
 }
