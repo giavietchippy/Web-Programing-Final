@@ -8,6 +8,11 @@ import './preferences.css'
 import './shell.css'
 import { ToastProvider } from './components/ToastContext.jsx'
 
+import 'bootstrap/dist/css/bootstrap.min.css'
+import 'bootstrap-icons/font/bootstrap-icons.css'
+import './index.css'
+import './shell.css'
+
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <AuthProvider>
