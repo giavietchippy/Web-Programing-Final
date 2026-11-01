@@ -1,47 +1,57 @@
 import { Card, ListGroup } from 'react-bootstrap'
+import NoteStatusIcons from './NoteStatusIcons'
+import PinButton from './PinButton'
 
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   dateStyle: 'short',
   timeStyle: 'short',
 })
 
-// Một ghi chú, hiển thị theo layout 'grid' (thẻ) hoặc 'list' (dòng); bấm để mở editor
-export default function NoteItem({ note, layout, onOpen }) {
+// Một ghi chú, hiển thị theo layout 'grid' (thẻ) hoặc 'list' (dòng)
+export default function NoteItem({ note, layout, onOpen, onTogglePin, pinBusy }) {
   const updated = dateFormatter.format(new Date(note.updated_at))
   const open = () => onOpen(note.id)
+  const pinButton = (
+    <PinButton
+      pinned={note.is_pinned}
+      busy={pinBusy}
+      title={note.title}
+      onToggle={() => onTogglePin(note)}
+    />
+  )
 
   if (layout === 'list') {
     return (
-      <ListGroup.Item
-        action
-        onClick={open}
-        className="note-list-item d-flex flex-column flex-sm-row gap-1 gap-sm-3 align-items-sm-center text-start"
-      >
+      <ListGroup.Item className="note-list-item d-flex align-items-center gap-2">
         <div className="flex-grow-1 min-w-0">
-          <div className="fw-semibold text-truncate">{note.title}</div>
+          <div className="d-flex align-items-center gap-2 min-w-0">
+            <button type="button" className="note-open stretched-link fw-semibold text-truncate" onClick={open}>
+              {note.title}
+            </button>
+            <NoteStatusIcons note={note} />
+          </div>
           <div className="text-body-secondary small text-truncate">{note.preview}</div>
+          {/* Trên điện thoại hiện thời gian ngay dưới nội dung */}
+          <small className="text-body-secondary d-sm-none">{updated}</small>
         </div>
-        <small className="text-body-secondary flex-shrink-0">{updated}</small>
+        <small className="text-body-secondary flex-shrink-0 d-none d-sm-block">{updated}</small>
+        {pinButton}
       </ListGroup.Item>
     )
   }
 
   return (
-    <Card
-      className="h-100 shadow-sm note-card note-clickable"
-      role="button"
-      tabIndex={0}
-      aria-label={`Mở ghi chú ${note.title}`}
-      onClick={open}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          open()
-        }
-      }}
-    >
-      <Card.Body>
-        <Card.Title className="h6 text-truncate">{note.title}</Card.Title>
+    <Card className="h-100 shadow-sm note-card">
+      <Card.Body className="pb-2">
+        <div className="d-flex align-items-start gap-1 mb-1">
+          <Card.Title className="h6 flex-grow-1 min-w-0 mb-0 pt-1">
+            <button type="button" className="note-open stretched-link text-truncate" onClick={open}>
+              {note.title}
+            </button>
+          </Card.Title>
+          <NoteStatusIcons note={note} />
+          {pinButton}
+        </div>
         <Card.Text className="note-preview-clamp text-body-secondary">{note.preview}</Card.Text>
       </Card.Body>
       <Card.Footer className="bg-transparent small text-body-secondary">{updated}</Card.Footer>

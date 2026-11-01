@@ -11,11 +11,28 @@ use Illuminate\Support\Str;
 
 class NoteController extends Controller
 {
-    // Danh sách ghi chú của người dùng hiện tại, mới sửa gần nhất xếp trên cùng
+    // Danh sách ghi chú: ghim lên đầu, hỗ trợ tìm theo từ khóa trong tiêu đề và nội dung
     public function index(Request $request): JsonResponse
     {
-        $notes = Note::query()
-            ->where('user_id', $this->currentUserId($request))
+        $validated = $request->validate(
+            ['q' => ['nullable', 'string', 'max:100']],
+            ['q.max' => 'Từ khóa tối đa 100 ký tự.'],
+        );
+        $keyword = trim($validated['q'] ?? '');
+
+        $query = Note::query()->where('user_id', $this->currentUserId($request));
+
+        if ($keyword !== '') {
+            // Escape % và _ để người dùng gõ ký tự này vẫn được tìm đúng nghĩa đen
+            $like = '%'.addcslashes($keyword, '\\%_').'%';
+            $query->where(function ($q) use ($like) {
+                $q->where('title', 'like', $like)->orWhere('content', 'like', $like);
+            });
+        }
+
+        $notes = $query
+            ->orderByRaw('pinned_at IS NULL') // ghi chú đã ghim trước
+            ->orderByDesc('pinned_at')        // ghim sau nằm trên
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->get()
@@ -52,6 +69,27 @@ class NoteController extends Controller
         return response()->json(['data' => $this->present($record, true)]);
     }
 
+    // Ghim hoặc bỏ ghim ghi chú
+    public function pin(Request $request, int $note): JsonResponse
+    {
+        $data = $request->validate([
+            'pinned' => ['required', 'boolean'],
+        ], [
+            'pinned.required' => 'Thiếu trạng thái ghim.',
+            'pinned.boolean' => 'Trạng thái ghim không hợp lệ.',
+        ]);
+
+        $record = $this->findOwned($request, $note);
+
+        // Ghim/bỏ ghim không được làm thay đổi thời điểm sửa lần cuối
+        $record->timestamps = false;
+        // Đã ghim rồi mà ghim lại thì giữ nguyên thời điểm ghim cũ
+        $record->pinned_at = $data['pinned'] ? ($record->pinned_at ?? now()) : null;
+        $record->save();
+
+        return response()->json(['data' => $this->present($record)]);
+    }
+
     public function destroy(Request $request, int $note): Response
     {
         $this->findOwned($request, $note)->delete();
@@ -65,9 +103,9 @@ class NoteController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'content' => ['required', 'string', 'max:100000'],
         ], [
-            'title.required' => 'Vui long nhap tieu de.',
+            'title.required' => 'Vui lòng nhập tiêu đề.',
             'title.max' => 'Tiêu đề tối đa 255 ký tự.',
-            'content.required' => 'Vui long nhap noi dung.',
+            'content.required' => 'Vui lòng nhập nội dung.',
             'content.max' => 'Nội dung quá dài.',
         ]);
     }
@@ -86,6 +124,8 @@ class NoteController extends Controller
             'id' => $note->id,
             'title' => $note->title,
             'preview' => Str::limit(trim($note->content), 300),
+            'is_pinned' => $note->pinned_at !== null,
+            'pinned_at' => $note->pinned_at,
             'created_at' => $note->created_at,
             'updated_at' => $note->updated_at,
         ];
