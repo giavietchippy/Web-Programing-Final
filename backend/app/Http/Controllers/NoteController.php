@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ResolvesCurrentUser;
 use App\Models\Note;
+use App\Services\NoteLockService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -33,11 +34,29 @@ class NoteController extends Controller
             ->where('user_id', $this->currentUserId($request))
             ->with('labels:id,name');
 
+        // Chỉ được tìm theo nội dung của ghi chú không khóa hoặc đã mở khóa trong phiên.
+        $unlockedIds = Note::query()
+            ->where('user_id', $this->currentUserId($request))
+            ->whereNotNull('password_hash')
+            ->get(['id', 'password_hash'])
+            ->filter(fn (Note $note) => NoteLockService::isUnlocked($request, $note))
+            ->pluck('id')
+            ->all();
+
         if ($keyword !== '') {
             // Escape % và _ để người dùng gõ ký tự này vẫn được tìm đúng nghĩa đen
             $like = '%'.addcslashes($keyword, '\\%_').'%';
-            $query->where(function ($q) use ($like) {
-                $q->where('title', 'like', $like)->orWhere('content', 'like', $like);
+            $query->where(function ($q) use ($like, $unlockedIds) {
+                $q->where('title', 'like', $like)
+                    ->orWhere(function ($contentQuery) use ($like, $unlockedIds) {
+                        $contentQuery->where('content', 'like', $like)
+                            ->where(function ($visible) use ($unlockedIds) {
+                                $visible->whereNull('password_hash');
+                                if ($unlockedIds !== []) {
+                                    $visible->orWhereIn('id', $unlockedIds);
+                                }
+                            });
+                    });
             });
         }
 
@@ -52,7 +71,7 @@ class NoteController extends Controller
             ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->get()
-            ->map(fn (Note $note) => $this->present($note));
+            ->map(fn (Note $note) => $this->present($request, $note));
 
         return response()->json(['data' => $notes]);
     }
@@ -61,7 +80,7 @@ class NoteController extends Controller
     public function show(Request $request, int $note): JsonResponse
     {
         return response()->json([
-            'data' => $this->present($this->findOwned($request, $note), true),
+            'data' => $this->present($request, $this->findOwnedAndUnlocked($request, $note), true),
         ]);
     }
 
@@ -73,16 +92,16 @@ class NoteController extends Controller
             'user_id' => $this->currentUserId($request),
         ]);
 
-        return response()->json(['data' => $this->present($note, true)], 201);
+        return response()->json(['data' => $this->present($request, $note, true)], 201);
     }
 
     // Cập nhật ghi chú (được gọi liên tục bởi auto-save)
     public function update(Request $request, int $note): JsonResponse
     {
-        $record = $this->findOwned($request, $note);
+        $record = $this->findOwnedAndUnlocked($request, $note);
         $record->update($this->validated($request));
 
-        return response()->json(['data' => $this->present($record, true)]);
+        return response()->json(['data' => $this->present($request, $record, true)]);
     }
 
     // Ghim hoặc bỏ ghim ghi chú
@@ -95,7 +114,7 @@ class NoteController extends Controller
             'pinned.boolean' => 'Trạng thái ghim không hợp lệ.',
         ]);
 
-        $record = $this->findOwned($request, $note);
+        $record = $this->findOwnedAndUnlocked($request, $note);
 
         // Ghim/bỏ ghim không được làm thay đổi thời điểm sửa lần cuối
         $record->timestamps = false;
@@ -103,7 +122,7 @@ class NoteController extends Controller
         $record->pinned_at = $data['pinned'] ? ($record->pinned_at ?? now()) : null;
         $record->save();
 
-        return response()->json(['data' => $this->present($record)]);
+        return response()->json(['data' => $this->present($request, $record)]);
     }
 
     // Đặt toàn bộ nhãn của ghi chú (mảng rỗng = gỡ hết nhãn)
@@ -122,16 +141,16 @@ class NoteController extends Controller
             'label_ids.*.integer' => 'Nhãn không hợp lệ.',
         ]);
 
-        $record = $this->findOwned($request, $note);
+        $record = $this->findOwnedAndUnlocked($request, $note);
         $record->labels()->sync($data['label_ids']);
         $record->load('labels');
 
-        return response()->json(['data' => $this->present($record)]);
+        return response()->json(['data' => $this->present($request, $record)]);
     }
 
     public function destroy(Request $request, int $note): Response
     {
-        $this->findOwned($request, $note)->delete();
+        $this->findOwnedAndUnlocked($request, $note)->delete();
 
         return response()->noContent();
     }
@@ -157,14 +176,25 @@ class NoteController extends Controller
             ->findOrFail($id);
     }
 
-    private function present(Note $note, bool $withContent = false): array
+    private function findOwnedAndUnlocked(Request $request, int $id): Note
+    {
+        $record = $this->findOwned($request, $id);
+        NoteLockService::requireUnlocked($request, $record);
+        return $record;
+    }
+
+    private function present(Request $request, Note $note, bool $withContent = false): array
     {
         $note->loadMissing('labels:id,name');
+        $unlocked = NoteLockService::isUnlocked($request, $note);
 
         $data = [
             'id' => $note->id,
             'title' => $note->title,
-            'preview' => Str::limit(trim($note->content), 300),
+            'preview' => $unlocked ? Str::limit(trim($note->content), 300) : '',
+            'is_locked' => $note->password_hash !== null,
+            'is_unlocked' => $unlocked,
+            'is_shared' => false,
             'is_pinned' => $note->pinned_at !== null,
             'pinned_at' => $note->pinned_at,
             'labels' => $note->labels
@@ -174,7 +204,7 @@ class NoteController extends Controller
             'updated_at' => $note->updated_at,
         ];
 
-        if ($withContent) {
+        if ($withContent && $unlocked) {
             $data['content'] = $note->content;
         }
 

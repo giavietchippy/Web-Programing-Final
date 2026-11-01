@@ -5,6 +5,8 @@ import { fetchNotes, setNotePinned } from '../api/notes'
 import LabelFilter from '../components/notes/LabelFilter'
 import LabelManagerModal from '../components/notes/LabelManagerModal'
 import NoteEditorModal from '../components/notes/NoteEditorModal'
+import NotePasswordModal from '../components/notes/NotePasswordModal'
+import { relockNote } from '../api/notePasswords'
 import NotesView from '../components/notes/NotesView'
 import SearchBox from '../components/notes/SearchBox'
 import ViewToggle from '../components/notes/ViewToggle'
@@ -23,6 +25,7 @@ export default function NotesPage() {
   const [pinningId, setPinningId] = useState(null)
   // null = đóng; { noteId: null } = ghi chú mới; { noteId: 5 } = sửa ghi chú 5
   const [editor, setEditor] = useState(null)
+  const [unlockTarget, setUnlockTarget] = useState(null)
 
   // Nhãn: danh sách tất cả nhãn, các nhãn đang dùng để lọc, và hộp thoại quản lý
   const [labels, setLabels] = useState([])
@@ -102,7 +105,20 @@ export default function NotesPage() {
     setReloadKey((k) => k + 1)
   }
 
+  const openNote = (id) => {
+    const found = notes.find((note) => note.id === id)
+    if (found?.is_locked && !found?.is_unlocked) {
+      setUnlockTarget({ noteId: id, action: 'open' })
+      return
+    }
+    setEditor({ noteId: id })
+  }
+
   const togglePin = async (note) => {
+    if (note.is_locked && !note.is_unlocked) {
+      setUnlockTarget({ noteId: note.id, action: 'pin', note })
+      return
+    }
     setPinningId(note.id)
     setActionError('')
     try {
@@ -192,7 +208,7 @@ export default function NotesPage() {
         <NotesView
           notes={notes}
           mode={mode}
-          onOpen={(id) => setEditor({ noteId: id })}
+          onOpen={openNote}
           onTogglePin={togglePin}
           pinningId={pinningId}
         />
@@ -213,6 +229,29 @@ export default function NotesPage() {
       >
         <i className="bi bi-plus-lg fs-4" aria-hidden="true" />
       </Button>
+
+      {unlockTarget && (
+        <NotePasswordModal
+          key={`unlock-${unlockTarget.noteId}`}
+          noteId={unlockTarget.noteId}
+          mode="unlock"
+          onClose={() => setUnlockTarget(null)}
+          onSuccess={async () => {
+            const target = unlockTarget
+            setUnlockTarget(null)
+            setReloadKey((k) => k + 1)
+            if (target.action === 'open') setEditor({ noteId: target.noteId })
+            if (target.action === 'pin') {
+              try {
+                const updated = await setNotePinned(target.noteId, !target.note.is_pinned)
+                await relockNote(target.noteId)
+                setReloadKey((k) => k + 1)
+                setNotes((prev) => sortNotes(prev.map((n) => n.id === updated.id ? toSummary(updated) : n)))
+              } catch (err) { setActionError(err.message) }
+            }
+          }}
+        />
+      )}
 
       {editor && (
         <NoteEditorModal

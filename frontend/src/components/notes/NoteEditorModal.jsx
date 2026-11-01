@@ -3,6 +3,8 @@ import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap'
 import { createNote, deleteNote, getNote, setNoteLabels, updateNote } from '../../api/notes'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 import LabelPicker from './LabelPicker'
+import NotePasswordModal from './NotePasswordModal'
+import { relockNote } from '../../api/notePasswords'
 
 // Thời gian chờ sau lần gõ cuối cùng trước khi tự lưu
 const AUTOSAVE_DELAY = 800
@@ -23,6 +25,8 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
   const [labelIds, setLabelIds] = useState([])
   const [labelBusy, setLabelBusy] = useState(false)
   const [labelError, setLabelError] = useState('')
+  const [isLocked, setIsLocked] = useState(false)
+  const [passwordMode, setPasswordMode] = useState(null)
 
   // Dùng ref để auto-save luôn đọc được dữ liệu mới nhất mà không bị closure cũ
   const idRef = useRef(noteId)
@@ -51,6 +55,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
         setTitle(note.title)
         setContent(note.content)
         setLabelIds(note.labels.map((l) => l.id))
+        setIsLocked(note.is_locked)
         setLoadStatus('ready')
       })
       .catch((err) => {
@@ -135,6 +140,15 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
     if ((failedRef.current || invalidRef.current) && !warnedRef.current) {
       warnedRef.current = true
       return
+    }
+    if (isLocked && idRef.current) {
+      try {
+        await relockNote(idRef.current)
+      } catch (err) {
+        setSaveError(err.message)
+        setSaveStatus('error')
+        return
+      }
     }
     closedRef.current = true
     onClose()
@@ -245,6 +259,24 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
             {statusText}
           </span>
           {currentId && (
+            <>
+              {!isLocked ? (
+                <Button variant="outline-secondary" onClick={async () => {
+                  clearTimeout(timerRef.current)
+                  await persist()
+                  if (!failedRef.current && !invalidRef.current) setPasswordMode('lock')
+                }}>
+                  <i className="bi bi-lock me-1" /> Đặt mật khẩu
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline-secondary" onClick={() => setPasswordMode('change')}>Đổi mật khẩu</Button>
+                  <Button variant="outline-secondary" onClick={() => setPasswordMode('disable')}>Tắt khóa</Button>
+                </>
+              )}
+            </>
+          )}
+          {currentId && (
             <Button variant="outline-danger" onClick={() => setConfirmOpen(true)}>
               <i className="bi bi-trash me-1" aria-hidden="true" />
               Xóa
@@ -256,6 +288,20 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
         </Modal.Footer>
       </Modal>
 
+      {passwordMode && currentId && (
+        <NotePasswordModal
+          key={passwordMode}
+          noteId={currentId}
+          mode={passwordMode}
+          onClose={() => setPasswordMode(null)}
+          onSuccess={async () => {
+            const updated = await getNote(currentId)
+            setIsLocked(updated.is_locked)
+            onSavedRef.current(updated)
+            setPasswordMode(null)
+          }}
+        />
+      )}
       <ConfirmDeleteModal
         show={confirmOpen}
         title={title}
