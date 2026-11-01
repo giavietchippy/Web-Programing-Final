@@ -4,4 +4,4 @@ use App\Http\Controllers\NoteController;
 use Illuminate\Support\Facades\Route;
 
 // TODO: khi Member 1 merge Sanctum, bọc nhóm route này bằng middleware 'auth:sanctum'
-Route::get('/notes', [NoteController::class, 'index']);
+Route::apiResource('notes', NoteController::class);
