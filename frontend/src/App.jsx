@@ -1,4 +1,4 @@
-import { useState } from 'react'
+/**import { useState } from 'react'
 import heroImg from './assets/hero.png'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
@@ -119,4 +119,11 @@ function App() {
   )
 }
 
-export default App
+export default App */
+
+import NotesPage from './pages/NotesPage'
+
+// Tạm thời hiển thị thẳng trang ghi chú; Member 1 sẽ thay bằng app shell + router
+export default function App() {
+  return <NotesPage />
+}

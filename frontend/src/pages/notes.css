@@ -1,0 +1,23 @@
+/* Giới hạn phần xem trước nội dung tối đa 4 dòng trong thẻ lưới */
+.note-preview-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-line;
+}
+
+.note-card {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.note-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--bs-box-shadow) !important;
+}
+
+/* Cho phép text-truncate hoạt động bên trong flex */
+.min-w-0 {
+  min-width: 0;
+}
