@@ -2,12 +2,12 @@ import { Col, ListGroup, Row } from 'react-bootstrap'
 import NoteItem from './NoteItem'
 
 // Hiển thị tập ghi chú theo dạng lưới (mặc định) hoặc danh sách
-export default function NotesView({ notes, mode }) {
+export default function NotesView({ notes, mode, onOpen }) {
   if (mode === 'list') {
     return (
       <ListGroup aria-label="Danh sách ghi chú">
         {notes.map((note) => (
-          <NoteItem key={note.id} note={note} layout="list" />
+          <NoteItem key={note.id} note={note} layout="list" onOpen={onOpen} />
         ))}
       </ListGroup>
     )
@@ -18,7 +18,7 @@ export default function NotesView({ notes, mode }) {
     <Row xs={1} sm={2} lg={3} xl={4} className="g-3">
       {notes.map((note) => (
         <Col key={note.id}>
-          <NoteItem note={note} layout="grid" />
+          <NoteItem note={note} layout="grid" onOpen={onOpen} />
         </Col>
       ))}
     </Row>

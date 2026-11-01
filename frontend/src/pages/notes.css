@@ -21,3 +21,12 @@
 .min-w-0 {
   min-width: 0;
 }
+
+.note-clickable {
+  cursor: pointer;
+}
+
+/* Lớp nền của hộp thoại xác nhận xóa phải nằm trên modal editor (z-index 1055) */
+.confirm-backdrop {
+  z-index: 1060;
+}
