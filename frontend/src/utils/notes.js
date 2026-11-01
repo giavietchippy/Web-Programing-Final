@@ -8,6 +8,7 @@ export function toSummary(note) {
     preview: note.preview,
     is_pinned: note.is_pinned,
     pinned_at: note.pinned_at,
+    labels: note.labels ?? [],
     created_at: note.created_at,
     updated_at: note.updated_at,
   }

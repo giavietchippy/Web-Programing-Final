@@ -1,6 +1,7 @@
 import { Card, ListGroup } from 'react-bootstrap'
 import NoteStatusIcons from './NoteStatusIcons'
 import PinButton from './PinButton'
+import NoteLabels from './NoteLabels'
 
 const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   dateStyle: 'short',
@@ -31,6 +32,7 @@ export default function NoteItem({ note, layout, onOpen, onTogglePin, pinBusy })
             <NoteStatusIcons note={note} />
           </div>
           <div className="text-body-secondary small text-truncate">{note.preview}</div>
+          <NoteLabels labels={note.labels} />   
           {/* Trên điện thoại hiện thời gian ngay dưới nội dung */}
           <small className="text-body-secondary d-sm-none">{updated}</small>
         </div>
@@ -53,6 +55,7 @@ export default function NoteItem({ note, layout, onOpen, onTogglePin, pinBusy })
           {pinButton}
         </div>
         <Card.Text className="note-preview-clamp text-body-secondary">{note.preview}</Card.Text>
+        <NoteLabels labels={note.labels} />
       </Card.Body>
       <Card.Footer className="bg-transparent small text-body-secondary">{updated}</Card.Footer>
     </Card>

@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert, Button, Container, Spinner } from 'react-bootstrap'
+import { fetchLabels } from '../api/labels'
 import { fetchNotes, setNotePinned } from '../api/notes'
+import LabelFilter from '../components/notes/LabelFilter'
+import LabelManagerModal from '../components/notes/LabelManagerModal'
 import NoteEditorModal from '../components/notes/NoteEditorModal'
 import NotesView from '../components/notes/NotesView'
 import SearchBox from '../components/notes/SearchBox'
@@ -21,17 +24,39 @@ export default function NotesPage() {
   // null = đóng; { noteId: null } = ghi chú mới; { noteId: 5 } = sửa ghi chú 5
   const [editor, setEditor] = useState(null)
 
+  // Nhãn: danh sách tất cả nhãn, các nhãn đang dùng để lọc, và hộp thoại quản lý
+  const [labels, setLabels] = useState([])
+  const [selectedLabelIds, setSelectedLabelIds] = useState([])
+  const [showLabelManager, setShowLabelManager] = useState(false)
+
   // Tìm kiếm live: chờ 300ms sau lần gõ cuối rồi mới gọi server
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebouncedValue(query.trim(), 300)
-  const [fetchedQuery, setFetchedQuery] = useState('') // từ khóa của kết quả đang hiển thị
+  // Bộ lọc của kết quả đang hiển thị (để chọn đúng nội dung trạng thái rỗng)
+  const [fetchedQuery, setFetchedQuery] = useState('')
+  const [fetchedHasLabels, setFetchedHasLabels] = useState(false)
+
+  // Tải danh sách nhãn; bỏ khỏi bộ lọc những nhãn không còn tồn tại (vừa bị xóa)
+  const loadLabels = useCallback(async () => {
+    const data = await fetchLabels()
+    setLabels(data)
+    setSelectedLabelIds((prev) => {
+      const kept = prev.filter((id) => data.some((l) => l.id === id))
+      return kept.length === prev.length ? prev : kept
+    })
+  }, [])
+
+  useEffect(() => {
+    loadLabels().catch(() => {}) // lỗi tải nhãn không chặn việc xem ghi chú
+  }, [loadLabels])
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchNotes({ query: debouncedQuery, signal: controller.signal })
+    fetchNotes({ query: debouncedQuery, labelIds: selectedLabelIds, signal: controller.signal })
       .then((data) => {
         setNotes(data)
         setFetchedQuery(debouncedQuery)
+        setFetchedHasLabels(selectedLabelIds.length > 0)
         setStatus('success')
       })
       .catch((err) => {
@@ -39,9 +64,9 @@ export default function NotesPage() {
         setError(err.message)
         setStatus('error')
       })
-    // Hủy request cũ khi từ khóa đổi để kết quả cũ không ghi đè kết quả mới
+    // Hủy request cũ khi bộ lọc đổi để kết quả cũ không ghi đè kết quả mới
     return () => controller.abort()
-  }, [debouncedQuery, reloadKey])
+  }, [debouncedQuery, selectedLabelIds, reloadKey])
 
   const retry = () => {
     setStatus('loading')
@@ -51,7 +76,16 @@ export default function NotesPage() {
   // Đang chờ kết quả cho từ khóa mới (kể cả khoảng chờ 300ms)
   const searching = status === 'success' && query.trim() !== fetchedQuery
 
-  // Thêm mới hoặc cập nhật một ghi chú trong danh sách ngay khi auto-save thành công
+  const toggleLabelFilter = (id) =>
+    setSelectedLabelIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+
+  // Sau khi thêm/đổi tên/xóa nhãn: tải lại nhãn và ghi chú để tên nhãn trên thẻ luôn mới nhất
+  const handleLabelsChanged = async () => {
+    await loadLabels()
+    setReloadKey((k) => k + 1)
+  }
+
+  // Thêm mới hoặc cập nhật một ghi chú trong danh sách ngay khi lưu thành công
   const upsertNote = (saved) => {
     const summary = toSummary(saved)
     setNotes((prev) => {
@@ -62,7 +96,7 @@ export default function NotesPage() {
 
   const removeNote = (id) => setNotes((prev) => prev.filter((n) => n.id !== id))
 
-  // Đóng editor thì tải lại danh sách để khớp với từ khóa tìm kiếm đang dùng
+  // Đóng editor thì tải lại danh sách để khớp với bộ lọc đang dùng
   const closeEditor = () => {
     setEditor(null)
     setReloadKey((k) => k + 1)
@@ -82,6 +116,8 @@ export default function NotesPage() {
       setPinningId(null)
     }
   }
+
+  const isFiltering = fetchedQuery !== '' || fetchedHasLabels
 
   return (
     <Container className="py-4">
@@ -103,6 +139,14 @@ export default function NotesPage() {
           <ViewToggle mode={mode} onChange={setMode} />
         </div>
       </div>
+
+      <LabelFilter
+        labels={labels}
+        selectedIds={selectedLabelIds}
+        onToggle={toggleLabelFilter}
+        onClear={() => setSelectedLabelIds([])}
+        onManage={() => setShowLabelManager(true)}
+      />
 
       {actionError && (
         <Alert variant="danger" dismissible onClose={() => setActionError('')}>
@@ -128,10 +172,10 @@ export default function NotesPage() {
 
       {status === 'success' && notes.length === 0 && (
         <div className="text-center text-body-secondary py-5">
-          {fetchedQuery ? (
+          {isFiltering ? (
             <>
               <i className="bi bi-search fs-1" aria-hidden="true" />
-              <p className="mt-2">Không tìm thấy ghi chú nào khớp với “{fetchedQuery}”.</p>
+              <p className="mt-2">Không tìm thấy ghi chú nào phù hợp với bộ lọc hiện tại.</p>
             </>
           ) : (
             <>
@@ -154,16 +198,25 @@ export default function NotesPage() {
 
       {/* Báo số kết quả cho trình đọc màn hình */}
       <div className="visually-hidden" aria-live="polite">
-        {status === 'success' && fetchedQuery ? `Tìm thấy ${notes.length} ghi chú` : ''}
+        {status === 'success' && isFiltering ? `Tìm thấy ${notes.length} ghi chú` : ''}
       </div>
 
       {editor && (
         <NoteEditorModal
           key={editor.noteId ?? 'new'}
           noteId={editor.noteId}
+          labels={labels}
           onClose={closeEditor}
           onSaved={upsertNote}
           onDeleted={removeNote}
+        />
+      )}
+
+      {showLabelManager && (
+        <LabelManagerModal
+          labels={labels}
+          onClose={() => setShowLabelManager(false)}
+          onChanged={handleLabelsChanged}
         />
       )}
     </Container>

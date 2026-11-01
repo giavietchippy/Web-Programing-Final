@@ -2,25 +2,36 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ResolvesCurrentUser;
 use App\Models\Note;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class NoteController extends Controller
 {
-    // Danh sách ghi chú: ghim lên đầu, hỗ trợ tìm theo từ khóa trong tiêu đề và nội dung
+    use ResolvesCurrentUser;
+
+    // Danh sách ghi chú: ghim lên đầu; hỗ trợ tìm theo từ khóa và lọc theo nhãn
     public function index(Request $request): JsonResponse
     {
-        $validated = $request->validate(
-            ['q' => ['nullable', 'string', 'max:100']],
-            ['q.max' => 'Từ khóa tối đa 100 ký tự.'],
-        );
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'labels' => ['nullable', 'array', 'max:50'],
+            'labels.*' => ['integer'],
+        ], [
+            'q.max' => 'Từ khóa tối đa 100 ký tự.',
+            'labels.array' => 'Bộ lọc nhãn không hợp lệ.',
+            'labels.*.integer' => 'Bộ lọc nhãn không hợp lệ.',
+        ]);
         $keyword = trim($validated['q'] ?? '');
+        $labelIds = array_map('intval', $validated['labels'] ?? []);
 
-        $query = Note::query()->where('user_id', $this->currentUserId($request));
+        $query = Note::query()
+            ->where('user_id', $this->currentUserId($request))
+            ->with('labels:id,name');
 
         if ($keyword !== '') {
             // Escape % và _ để người dùng gõ ký tự này vẫn được tìm đúng nghĩa đen
@@ -28,6 +39,11 @@ class NoteController extends Controller
             $query->where(function ($q) use ($like) {
                 $q->where('title', 'like', $like)->orWhere('content', 'like', $like);
             });
+        }
+
+        // Ghi chú có ít nhất một trong các nhãn được chọn
+        if ($labelIds !== []) {
+            $query->whereHas('labels', fn ($q) => $q->whereIn('labels.id', $labelIds));
         }
 
         $notes = $query
@@ -90,6 +106,29 @@ class NoteController extends Controller
         return response()->json(['data' => $this->present($record)]);
     }
 
+    // Đặt toàn bộ nhãn của ghi chú (mảng rỗng = gỡ hết nhãn)
+    public function syncLabels(Request $request, int $note): JsonResponse
+    {
+        $userId = $this->currentUserId($request);
+
+        $data = $request->validate([
+            'label_ids' => ['present', 'array', 'max:50'],
+            // Chỉ cho phép gắn nhãn thuộc về chính người dùng
+            'label_ids.*' => ['integer', Rule::exists('labels', 'id')->where('user_id', $userId)],
+        ], [
+            'label_ids.present' => 'Thiếu danh sách nhãn.',
+            'label_ids.array' => 'Danh sách nhãn không hợp lệ.',
+            'label_ids.*.exists' => 'Nhãn không tồn tại.',
+            'label_ids.*.integer' => 'Nhãn không hợp lệ.',
+        ]);
+
+        $record = $this->findOwned($request, $note);
+        $record->labels()->sync($data['label_ids']);
+        $record->load('labels');
+
+        return response()->json(['data' => $this->present($record)]);
+    }
+
     public function destroy(Request $request, int $note): Response
     {
         $this->findOwned($request, $note)->delete();
@@ -120,12 +159,17 @@ class NoteController extends Controller
 
     private function present(Note $note, bool $withContent = false): array
     {
+        $note->loadMissing('labels:id,name');
+
         $data = [
             'id' => $note->id,
             'title' => $note->title,
             'preview' => Str::limit(trim($note->content), 300),
             'is_pinned' => $note->pinned_at !== null,
             'pinned_at' => $note->pinned_at,
+            'labels' => $note->labels
+                ->map(fn ($label) => ['id' => $label->id, 'name' => $label->name])
+                ->values(),
             'created_at' => $note->created_at,
             'updated_at' => $note->updated_at,
         ];
@@ -135,17 +179,5 @@ class NoteController extends Controller
         }
 
         return $data;
-    }
-
-    // TẠM THỜI: khi có Sanctum thì chỉ cần return $request->user()->id và xóa phần fallback
-    private function currentUserId(Request $request): int
-    {
-        if ($request->user()) {
-            return $request->user()->id;
-        }
-
-        abort_unless(app()->environment('local'), 401, 'Unauthenticated.');
-
-        return User::where('email', 'demo@notes.local')->valueOrFail('id');
     }
 }

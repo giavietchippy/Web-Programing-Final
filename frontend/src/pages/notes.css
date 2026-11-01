@@ -68,3 +68,11 @@
 .confirm-backdrop {
   z-index: 1060;
 }
+
+/* Nhãn dài thì cắt bớt để không làm vỡ thẻ */
+.note-label {
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
