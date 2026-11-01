@@ -16,7 +16,11 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-
+    protected $attributes = [
+        'theme' => 'light',
+        'font_size' => 'medium',
+        'note_color' => 'default',
+    ];
     protected $appends = ['avatar_url'];
 
     /**

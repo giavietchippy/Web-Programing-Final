@@ -15,6 +15,13 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.theme = user?.theme ?? 'light'
+    root.dataset.fontSize = user?.font_size ?? 'medium'
+    root.dataset.noteColor = user?.note_color ?? 'default'
+  }, [user])
+
   const login = async (email, password) => {
     const res = await api.post('/login', { email, password })
     setUser(res.data)
