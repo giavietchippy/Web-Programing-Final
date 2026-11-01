@@ -10,6 +10,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(DemoUsersSeeder::class);
         $user = User::firstOrCreate(
             ['email' => 'demo@notes.local'],
             ['name' => 'Demo', 'password' => 'password'], // cast 'hashed' sẽ băm bcrypt
