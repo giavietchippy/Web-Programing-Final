@@ -18,7 +18,7 @@ export default function ConfirmDeleteModal({ show, title, deleting, error, onCan
       </Modal.Header>
       <Modal.Body>
         <p className="mb-1">
-          Bạn có chắc chắn muốn xóa ghi chú <strong>{title || 'không có tiêu đề'}</strong>?
+            Bạn có chắc chắn muốn xóa ghi chú <strong className="text-break">{title || 'không có tiêu đề'}</strong>?
         </p>
         <p className="text-body-secondary small mb-0">Hành động này không thể hoàn tác.</p>
         {error && (

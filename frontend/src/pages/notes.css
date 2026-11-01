@@ -6,15 +6,29 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: pre-line;
+  /* URL hoặc chuỗi dài không khoảng trắng không được làm tràn thẻ */
+  overflow-wrap: anywhere;
 }
 
 .note-card {
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.note-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--bs-box-shadow) !important;
+/* Chỉ nhấc thẻ khi thiết bị có hover thật, tránh hiệu ứng "dính" trên cảm ứng */
+@media (hover: hover) {
+  .note-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--bs-box-shadow) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-card {
+    transition: none;
+  }
+  .note-card:hover {
+    transform: none;
+  }
 }
 
 /* Cho phép text-truncate hoạt động bên trong flex */
@@ -55,7 +69,6 @@
   z-index: 2;
 }
 
-/* Vùng chạm tối thiểu cho màn hình cảm ứng */
 .note-pin {
   display: inline-flex;
   align-items: center;
@@ -64,15 +77,106 @@
   min-height: 2.25rem;
 }
 
-/* Lớp nền của hộp thoại xác nhận xóa phải nằm trên modal editor (z-index 1055) */
-.confirm-backdrop {
-  z-index: 1060;
-}
-
 /* Nhãn dài thì cắt bớt để không làm vỡ thẻ */
 .note-label {
   max-width: 10rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Lớp nền của hộp thoại xác nhận xóa phải nằm trên modal editor (z-index 1055) */
+.confirm-backdrop {
+  z-index: 1060;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Thanh nhãn: điện thoại cuộn ngang một hàng */
+.label-filter-list {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+  /* Chừa chỗ để viền focus không bị cắt bởi overflow */
+  padding: 0.25rem;
+  margin: -0.25rem;
+}
+
+.label-filter-list > .btn {
+  flex-shrink: 0;
+}
+
+@media (min-width: 768px) {
+  .label-filter-list {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
+
+/* Nút "Ghi chú mới" dạng nổi, chỉ dùng trên điện thoại */
+.fab-new {
+  position: fixed;
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 1030;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* Chừa chỗ cuối trang để nút nổi không che ghi chú cuối cùng */
+@media (max-width: 767.98px) {
+  .notes-page {
+    padding-bottom: 6rem !important;
+  }
+}
+
+/* Ô nội dung trong editor co giãn theo màn hình */
+.note-editor-textarea {
+  min-height: 14rem;
+  resize: vertical;
+}
+
+@media (max-width: 767.98px) {
+  .note-editor-textarea {
+    min-height: 50vh; /* dự phòng cho trình duyệt cũ */
+    min-height: 50dvh;
+    resize: none;
+  }
+}
+
+/* Điện thoại nằm ngang: chiều cao rất thấp nên không ép ô nội dung quá cao */
+@media (max-height: 500px) {
+  .note-editor-textarea {
+    min-height: 8rem;
+  }
+}
+
+/* Màn hình cảm ứng: vùng chạm tối thiểu 44px và chữ ô nhập 16px (tránh iOS tự phóng to) */
+@media (pointer: coarse) {
+  .btn,
+  .form-control,
+  .form-control-sm {
+    min-height: 2.75rem;
+  }
+
+  .btn-sm {
+    --bs-btn-padding-x: 0.9rem;
+    --bs-btn-font-size: 1rem;
+  }
+
+  .form-control,
+  .form-control-sm {
+    font-size: 1rem;
+  }
+
+  .note-pin {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
 }

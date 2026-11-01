@@ -120,16 +120,18 @@ export default function NotesPage() {
   const isFiltering = fetchedQuery !== '' || fetchedHasLabels
 
   return (
-    <Container className="py-4">
+    <Container className="py-4" >
       <h1 className="h3 mb-3">Ghi chú của tôi</h1>
 
       <div className="d-flex flex-wrap gap-2 mb-3">
-        <div className="flex-grow-1" style={{ minWidth: '14rem' }}>
+        <div className="flex-grow-1" style={{ minWidth: '12rem' }}>
           <SearchBox value={query} onChange={setQuery} searching={searching} />
         </div>
         <div className="d-flex gap-2">
+          {/* Từ tablet trở lên: nút trên thanh công cụ; điện thoại dùng nút nổi bên dưới */}
           <Button
             variant="primary"
+            className="d-none d-md-inline-flex align-items-center"
             disabled={status === 'loading'}
             onClick={() => setEditor({ noteId: null })}
           >
@@ -200,6 +202,17 @@ export default function NotesPage() {
       <div className="visually-hidden" aria-live="polite">
         {status === 'success' && isFiltering ? `Tìm thấy ${notes.length} ghi chú` : ''}
       </div>
+
+      <Button
+        variant="primary"
+        className="fab-new d-md-none shadow"
+        aria-label="Ghi chú mới"
+        title="Ghi chú mới"
+        disabled={status === 'loading'}
+        onClick={() => setEditor({ noteId: null })}
+      >
+        <i className="bi bi-plus-lg fs-4" aria-hidden="true" />
+      </Button>
 
       {editor && (
         <NoteEditorModal
