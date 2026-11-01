@@ -10,10 +10,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::firstOrCreate(
-            ['email' => 'demo@notes.local'],
-            ['name' => 'Demo', 'password' => 'password'], // cast 'hashed' sẽ băm bcrypt
-        );
+        $this->call(DemoUsersSeeder::class);
+        $user = User::where('email', 'alice@example.com')->firstOrFail();
 
         if (Note::where('user_id', $user->id)->exists()) {
             return;

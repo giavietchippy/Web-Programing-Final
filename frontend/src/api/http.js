@@ -23,6 +23,11 @@ export async function request(url, { method = 'GET', body, signal } = {}) {
 
   if (res.status === 204) return null
 
+  if (res.status === 401) {
+    window.location.assign('/login') // đổi đúng đường dẫn trang login của Member 1
+    throw new Error('Phiên đăng nhập đã hết hạn.')
+  }
+
   const json = await res.json().catch(() => null)
   if (!res.ok) {
     const firstFieldError = json?.errors ? Object.values(json.errors)[0]?.[0] : null
