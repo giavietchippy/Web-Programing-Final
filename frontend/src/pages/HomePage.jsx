@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 
 export default function HomePage() {
@@ -15,6 +16,9 @@ export default function HomePage() {
         </div>
       )}
       <h1>Welcome, {user.name}</h1>
+      <p>
+        <Link to="/change-password">Change password</Link>
+      </p>
       <button onClick={logout}>Log out</button>
     </main>
   )
