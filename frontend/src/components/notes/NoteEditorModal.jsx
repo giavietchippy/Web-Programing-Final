@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Button, Form, Modal, Spinner } from 'react-bootstrap'
-import { createNote, deleteNote, getNote, setNoteLabels, updateNote } from '../../api/notes'
+//import { createNote, deleteNote, getNote, setNoteLabels, updateNote } from '../../api/notes'
 import ConfirmDeleteModal from './ConfirmDeleteModal'
 import LabelPicker from './LabelPicker'
 import NotePasswordModal from './NotePasswordModal'
@@ -9,12 +9,17 @@ import { markSharedNoteSeen } from '../../api/noteShares'
 import ShareNoteModal from './ShareNoteModal'
 import NoteAiPanel from './NoteAiPanel'
 import { getRealtimeEcho } from '../../api/realtime'
+import { loadNote } from '../../offline/dataSource'
+
+import { getNote } from '../../api/notes'
+import { deleteNoteQueued, saveNote, setNoteLabelsQueued } from '../../offline/mutations'
 
 // Thời gian chờ sau lần gõ cuối cùng trước khi tự lưu
 const AUTOSAVE_DELAY = 800
 
 // Màn hình DUY NHẤT cho cả thêm mới (noteId = null) và chỉnh sửa
 export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDeleted }) {
+  const [offlineMode, setOfflineMode] = useState(false)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [loadStatus, setLoadStatus] = useState(noteId ? 'loading' : 'ready')
@@ -59,10 +64,10 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
   }, [onSaved])
 
   // Chế độ sửa: tải nội dung đầy đủ của ghi chú
-  useEffect(() => {
+  /**useEffect(() => {
     if (!noteId) return
     const controller = new AbortController()
-    getNote(noteId, controller.signal)
+    loadNote(noteId, controller.signal)
       .then((note) => {
         latestRef.current = { title: note.title, content: note.content }
         savedRef.current = { title: note.title, content: note.content }
@@ -73,16 +78,67 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
         setPermission(note.permission ?? 'owner')
         setRealtimeKey(note.realtime_key ?? null)
         versionRef.current = note.content_version ?? 0
-        if (note.permission !== 'owner') markSharedNoteSeen(note.id).catch(() => {})
-        setLoadStatus('ready')
-      })
+        if (note.permission !== 'owner' && !note.offline) markSharedNoteSeen(note.id).catch(() => {})
+        if (note.offline) {
+          setOfflineMode(true)
+          if (note.permission !== 'owner') setPermission('view')
+        }})
       .catch((err) => {
         if (err.name === 'AbortError') return
         setLoadError(err.message)
         setLoadStatus('error')
       })
     return () => controller.abort()
-  }, [noteId])
+  }, [noteId])*/
+
+  useEffect(() => {
+    if (!noteId) return
+    const controller = new AbortController()
+    let active = true
+
+    const watchdog = setTimeout(() => {
+      if (!active) return
+      setLoadError('Tải ghi chú quá lâu (hơn 15 giây). Hãy tải lại trang.')
+      setLoadStatus('error')
+    }, 15000)
+
+    loadNote(noteId, controller.signal)
+      .then((note) => {
+        if (!active) return
+        try {
+          latestRef.current = { title: note.title, content: note.content }
+          savedRef.current = { title: note.title, content: note.content }
+          setTitle(note.title)
+          setContent(note.content)
+          setLabelIds((note.labels ?? []).map((l) => l.id))
+          setIsLocked(note.is_locked)
+          setPermission(note.permission ?? 'owner')
+          setRealtimeKey(note.realtime_key ?? null)
+          versionRef.current = note.content_version ?? 0
+          if (note.permission !== 'owner' && !note.offline) markSharedNoteSeen(note.id).catch(() => {})
+          if (note.offline) {
+            setOfflineMode(true)
+            if (note.permission !== 'owner') setPermission('view')
+          }
+          setLoadStatus('ready')
+        } catch (err) {
+          setLoadError(`Lỗi xử lý ghi chú: ${err.message}`)
+          setLoadStatus('error')
+        }
+      })
+      .catch((err) => {
+        if (!active || err.name === 'AbortError') return
+        setLoadError(err.message)
+        setLoadStatus('error')
+      })
+      .finally(() => clearTimeout(watchdog))
+
+    return () => {
+      active = false
+      clearTimeout(watchdog)
+      controller.abort()
+    }
+  }, [noteId])  
 
   // Cập nhật từ người đang sửa cùng ghi chú; không ghi đè bản nháp cục bộ.
   const applyRemote = useCallback((payload) => {
@@ -111,6 +167,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
     if (!currentId || !realtimeKey || loadStatus !== 'ready') return
     const echo = getRealtimeEcho()
     const room = `note.${currentId}.${realtimeKey}`
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRealtimeStatus('connecting')
     const channel = echo.private(room)
       .listen('.note.changed', applyRemote)
@@ -181,9 +238,9 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
       savingRef.current = true
       try {
         const body = { title: t, content: c, content_version: versionRef.current, client_id: clientIdRef.current }
-        const note = idRef.current
-          ? await updateNote(idRef.current, body)
-          : await createNote(body)
+        const note = await saveNote(idRef.current, body)
+          //? await updateNote(idRef.current, body)
+          //: await createNote(body)
 
         idRef.current = note.id
         setCurrentId(note.id)
@@ -195,7 +252,9 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
 
         // Nếu người dùng gõ thêm trong lúc đang lưu thì vẫn còn việc chờ lưu
         const latest = latestRef.current
-        setSaveStatus(latest.title === t && latest.content === c ? 'saved' : 'pending')
+        setSaveStatus(
+          latest.title === t && latest.content === c ? (note.pending ? 'queued' : 'saved') : 'pending',
+        )
       } catch (err) {
         failedRef.current = true
         setSaveError(err.message)
@@ -278,7 +337,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
     try {
       const id = idRef.current
       if (permission !== 'owner') throw new Error('Chỉ chủ sở hữu được xóa ghi chú.')
-      await deleteNote(id)
+      await deleteNoteQueued(id)
       onDeleted(id)
       onClose()
     } catch (err) {
@@ -296,7 +355,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
     setLabelBusy(true)
     setLabelError('')
     try {
-      const updated = await setNoteLabels(idRef.current, next)
+      const updated = await setNoteLabelsQueued(idRef.current, next)
       setLabelIds(updated.labels.map((l) => l.id))
       onSavedRef.current(updated) // cập nhật nhãn trên danh sách ngay
     } catch (err) {
@@ -314,6 +373,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
     invalid: 'Cần nhập cả tiêu đề và nội dung để ghi chú được lưu. Đóng lần nữa để bỏ phần chưa lưu.',
     error: `Chưa lưu được: ${saveError}. Đóng lần nữa để bỏ phần chưa lưu.`,
     conflict: 'Xung đột chỉnh sửa: bản này chưa được lưu.',
+    queued: 'Đã lưu trên thiết bị, sẽ đồng bộ khi có mạng.',
   }[saveStatus]
 
   return (
@@ -326,9 +386,17 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
         </Modal.Header>
 
         <Modal.Body>
-          {loadStatus === 'ready' && permission !== 'owner' && (
+          {loadStatus === 'ready' && permission !== 'owner' && !offlineMode && (
             <Alert variant={permission === 'edit' ? 'info' : 'secondary'}>
               Ghi chú được chia sẻ — {permission === 'edit' ? 'Bạn có quyền chỉnh sửa' : 'Bạn chỉ có quyền xem'}.
+            </Alert>
+          )}
+          {loadStatus === 'ready' && offlineMode && (
+            <Alert variant="warning">
+              <i className="bi bi-wifi-off me-1" aria-hidden="true" />
+              {permission === 'owner'
+                ? 'Bạn đang offline: thay đổi được lưu trên thiết bị và sẽ đồng bộ khi có mạng.'
+                : 'Bạn đang offline: ghi chú được chia sẻ chỉ xem được.'}
             </Alert>
           )}
           {loadStatus === 'loading' && (
@@ -338,7 +406,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
           )}
 
           {loadStatus === 'error' && <Alert variant="danger">{loadError}</Alert>}
-          {loadStatus === 'ready' && currentId && (
+          {loadStatus === 'ready' && currentId > 0 && !offlineMode && (
             <div className="small text-body-secondary mb-2" aria-live="polite">
               <i className="bi bi-broadcast me-1" />
               Realtime: {realtimeStatus === 'connected' ? 'Đã kết nối' : realtimeStatus === 'error' ? 'Lỗi kết nối' : 'Đang kết nối...'}
@@ -389,7 +457,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
               />}
             </Form>
           )}
-          {loadStatus === 'ready' && currentId && <NoteAiPanel noteId={currentId} />}
+          {loadStatus === 'ready' && currentId > 0 && !offlineMode && <NoteAiPanel noteId={currentId} />}
         </Modal.Body>
 
         <Modal.Footer>
@@ -422,7 +490,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
               )}
             </>
           )}
-          {currentId && permission === 'owner' && (
+          {currentId > 0 && !offlineMode && permission === 'owner' && (
             <Button variant="outline-danger" onClick={() => setConfirmOpen(true)}>
               <i className="bi bi-trash me-1" aria-hidden="true" />
               Xóa

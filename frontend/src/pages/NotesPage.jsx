@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Alert, Button, Container, Spinner } from 'react-bootstrap'
-import { fetchLabels } from '../api/labels'
-import { fetchNotes, setNotePinned } from '../api/notes'
+
+import { setNotePinned } from '../api/notes'
 import LabelFilter from '../components/notes/LabelFilter'
 import LabelManagerModal from '../components/notes/LabelManagerModal'
 import NoteEditorModal from '../components/notes/NoteEditorModal'
 import NotePasswordModal from '../components/notes/NotePasswordModal'
 import { relockNote } from '../api/notePasswords'
-import { getReceivedNotes } from '../api/noteShares'
+
 import NotesView from '../components/notes/NotesView'
 import SearchBox from '../components/notes/SearchBox'
 import ViewToggle from '../components/notes/ViewToggle'
@@ -15,7 +15,27 @@ import useDebouncedValue from '../hooks/useDebouncedValue'
 import { sortNotes, toSummary } from '../utils/notes'
 import './notes.css'
 
+import { loadLabels as loadLabelList, loadNotes, refreshSnapshot } from '../offline/dataSource'
+
+import { pinNoteQueued } from '../offline/mutations'
+import { dismissSyncReport, refreshPending, syncOutbox } from '../offline/sync'
+import useSyncStatus from '../offline/useSyncStatus'
+
 export default function NotesPage() {
+  const sync = useSyncStatus()
+
+  useEffect(() => {
+    refreshPending()
+  }, [])
+
+  const syncNow = () => {
+    syncOutbox()
+      .catch(() => {})
+      .finally(() => setReloadKey((k) => k + 1))
+  }
+  
+  const [offline, setOffline] = useState(false)
+  const [syncedAt, setSyncedAt] = useState(null)
   // Lưới là kiểu hiển thị mặc định (red rule)
   const [mode, setMode] = useState('grid')
   const [section, setSection] = useState('my')
@@ -42,8 +62,9 @@ export default function NotesPage() {
   const [fetchedHasLabels, setFetchedHasLabels] = useState(false)
 
   // Tải danh sách nhãn; bỏ khỏi bộ lọc những nhãn không còn tồn tại (vừa bị xóa)
-  const loadLabels = useCallback(async () => {
-    const data = await fetchLabels()
+  // Áp danh sách nhãn mới; bỏ khỏi bộ lọc những nhãn không còn tồn tại (vừa bị xóa)
+  // Áp danh sách nhãn mới; bỏ khỏi bộ lọc những nhãn không còn tồn tại (vừa bị xóa)
+  const applyLabels = useCallback((data) => {
     setLabels(data)
     setSelectedLabelIds((prev) => {
       const kept = prev.filter((id) => data.some((l) => l.id === id))
@@ -51,30 +72,63 @@ export default function NotesPage() {
     })
   }, [])
 
+  // Dùng khi người dùng thêm, đổi tên hoặc xóa nhãn
+  const loadLabels = useCallback(async () => {
+    applyLabels(await loadLabelList())
+  }, [applyLabels])
+
   useEffect(() => {
-    loadLabels().catch(() => {}) // lỗi tải nhãn không chặn việc xem ghi chú
-  }, [loadLabels])
+    let ignore = false
+    loadLabelList()
+      .then((data) => {
+        if (!ignore) applyLabels(data)
+      })
+      .catch(() => {}) // lỗi tải nhãn không chặn việc xem ghi chú
+    return () => {
+      ignore = true
+    }
+  }, [applyLabels])
 
   useEffect(() => {
     const controller = new AbortController()
-    const loader = section === 'my'
-      ? fetchNotes({ query: debouncedQuery, labelIds: selectedLabelIds, signal: controller.signal })
-      : getReceivedNotes({ query: debouncedQuery, signal: controller.signal })
-    loader
-      .then((data) => {
+    loadNotes({
+      section,
+      query: debouncedQuery,
+      labelIds: selectedLabelIds,
+      signal: controller.signal,
+    })
+      .then(({ notes: data, offline: isOffline, syncedAt: at }) => {
         setNotes(data)
+        setOffline(isOffline)
+        setSyncedAt(at)
         setFetchedQuery(debouncedQuery)
         setFetchedHasLabels(section === 'my' && selectedLabelIds.length > 0)
         setStatus('success')
-      })
+    })
       .catch((err) => {
         if (err.name === 'AbortError') return
         setError(err.message)
         setStatus('error')
       })
-    // Hủy request cũ khi bộ lọc đổi để kết quả cũ không ghi đè kết quả mới
+     // Hủy request cũ khi bộ lọc đổi để kết quả cũ không ghi đè kết quả mới
     return () => controller.abort()
   }, [debouncedQuery, selectedLabelIds, reloadKey, section])
+
+  // Làm mới bản lưu offline mỗi khi danh sách được tải lại (bỏ qua lặng lẽ khi offline)
+  useEffect(() => {
+    refreshSnapshot().catch(() => {})
+  }, [reloadKey])
+
+  // Khi mạng bật/tắt thì tải lại để chuyển giữa dữ liệu trực tuyến và bản lưu
+  useEffect(() => {
+    const reload = () => setReloadKey((k) => k + 1)
+    window.addEventListener('online', reload)
+    window.addEventListener('offline', reload)
+    return () => {
+      window.removeEventListener('online', reload)
+      window.removeEventListener('offline', reload)
+    }
+  }, [])
 
   const retry = () => {
     setStatus('loading')
@@ -113,6 +167,10 @@ export default function NotesPage() {
 
   const openNote = (id) => {
     const found = notes.find((note) => note.id === id)
+    if (offline && found?.is_locked) {
+      setActionError('Ghi chú có mật khẩu không thể mở khi đang offline.')
+      return
+    }
     if (found?.is_locked && !found?.is_unlocked) {
       setUnlockTarget({ noteId: id, action: 'open' })
       return
@@ -122,14 +180,22 @@ export default function NotesPage() {
 
   const togglePin = async (note) => {
     if (section === 'shared') return
-    if (note.is_locked && !note.is_unlocked) {
-      setUnlockTarget({ noteId: note.id, action: 'pin', note })
-      return
+    if (note.is_locked) {
+      if (offline) {
+        setActionError('Ghi chú có mật khẩu không thể ghim khi đang offline.')
+        return
+      }
+      if (!note.is_unlocked) {
+        setUnlockTarget({ noteId: note.id, action: 'pin', note })
+        return
+      }
     }
     setPinningId(note.id)
     setActionError('')
     try {
-      const updated = await setNotePinned(note.id, !note.is_pinned)
+      const updated = note.is_locked
+        ? await setNotePinned(note.id, !note.is_pinned)
+        : await pinNoteQueued(note.id, !note.is_pinned)
       setNotes((prev) =>
         sortNotes(prev.map((n) => (n.id === updated.id ? toSummary(updated) : n))),
       )
@@ -153,6 +219,46 @@ export default function NotesPage() {
           setSection('shared'); setStatus('loading'); setQuery('')
         }}>Shared with Me</Button>
       </div>
+      {offline && (
+        <Alert variant="warning" className="d-flex align-items-center gap-2">
+          <i className="bi bi-wifi-off" aria-hidden="true" />
+          <span>
+            Bạn đang offline. Đang hiển thị dữ liệu đã lưu
+            {syncedAt ? ` lúc ${new Date(syncedAt).toLocaleString('vi-VN')}` : ''}. Thay đổi của bạn sẽ được đồng bộ khi có mạng.
+          </span>
+        </Alert>
+      )}
+      {sync.pending > 0 && (
+        <Alert variant="info" className="d-flex align-items-center justify-content-between gap-2">
+          <span>
+            <i className="bi bi-cloud-arrow-up me-1" aria-hidden="true" />
+            {sync.syncing
+              ? 'Đang đồng bộ thay đổi...'
+              : `${sync.pending} thay đổi đang chờ đồng bộ.`}
+          </span>
+          {!offline && !sync.syncing && (
+            <Button size="sm" variant="outline-primary" onClick={syncNow}>
+              Đồng bộ ngay
+            </Button>
+          )}
+        </Alert>
+      )}
+      {sync.error && (
+        <Alert variant="danger">Đồng bộ chưa thành công: {sync.error}</Alert>
+      )}
+      {sync.report && (
+        <Alert
+          variant={sync.report.conflicts || sync.report.discarded ? 'warning' : 'success'}
+          dismissible
+          onClose={dismissSyncReport}
+        >
+          Đã đồng bộ {sync.report.synced} thay đổi.
+          {sync.report.conflicts > 0 &&
+            ` ${sync.report.conflicts} ghi chú bị xung đột đã được lưu thành bản sao có hậu tố "(bản offline)".`}
+          {sync.report.discarded > 0 &&
+            ` ${sync.report.discarded} thay đổi không áp dụng được (ghi chú đã bị xóa hoặc bạn không còn quyền).`}
+        </Alert>
+      )}
       {section === 'shared' && notes.some((n) => n.is_new) && (
         <Alert variant="info">Bạn có {notes.filter((n) => n.is_new).length} ghi chú mới được chia sẻ. Chọn một ghi chú để xem.</Alert>
       )}
@@ -181,7 +287,7 @@ export default function NotesPage() {
         selectedIds={selectedLabelIds}
         onToggle={toggleLabelFilter}
         onClear={() => setSelectedLabelIds([])}
-        onManage={() => setShowLabelManager(true)}
+        onManage={() => (offline ? setActionError('Không thể quản lý nhãn khi đang offline.') : setShowLabelManager(true))}
       />}
 
       {actionError && (

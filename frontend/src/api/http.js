@@ -25,7 +25,9 @@ export async function request(url, { method = 'GET', body, signal } = {}) {
 
   if (res.status === 401) {
     window.location.assign('/login') // đổi đúng đường dẫn trang login của Member 1
-    throw new Error('Phiên đăng nhập đã hết hạn.')
+    const expired = new Error('Phiên đăng nhập đã hết hạn.')
+    expired.status = 401
+    throw expired
   }
 
   const json = await res.json().catch(() => null)
