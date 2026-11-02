@@ -1,6 +1,8 @@
 503073 - WEB PROGRAMMING & APPLICATIONS - FINAL PROJECT
 Notes application (Laravel + React), run locally with Docker Compose
 
+Link github: https://github.com/giavietchippy/Web-Programing-Final
+
 TEAM
 - 524H0041 - Trần Đỗ Quốc Anh
 - 524H0075 - Nguyễn Gia Việt
