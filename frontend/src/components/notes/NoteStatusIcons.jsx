@@ -4,6 +4,7 @@
 const STATUSES = [
   { key: 'is_shared', icon: 'bi-people-fill', label: 'Ghi chú đã chia sẻ' },
   { key: 'is_locked', icon: 'bi-lock-fill', label: 'Ghi chú có mật khẩu' },
+  { key: 'pending', icon: 'bi-cloud-arrow-up', label: 'Đang chờ đồng bộ' },
 ]
 
 export default function NoteStatusIcons({ note }) {

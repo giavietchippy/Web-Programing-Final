@@ -6,6 +6,7 @@ use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NotePasswordController;
 use App\Http\Controllers\NoteShareController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\OfflineSnapshotController;
 
 // Phải dùng cùng bộ middleware với các route cần đăng nhập của Member 1 (profile, password...)
 Route::middleware(['web', 'auth', 'auth.session'])->group(function () {
@@ -26,4 +27,5 @@ Route::middleware(['web', 'auth', 'auth.session'])->group(function () {
     Route::post('notes/{note}/ai/ask', [NoteAiController::class, 'ask'])->middleware('throttle:10,1')->whereNumber('note');
     Route::apiResource('notes', NoteController::class);
     Route::apiResource('labels', LabelController::class)->except('show');
+    Route::get('offline/snapshot', [OfflineSnapshotController::class, 'show']);
 });

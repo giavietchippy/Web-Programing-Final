@@ -52,4 +52,20 @@ class NotePresenter
         }
         return $result;
     }
+
+    public static function forOffline(Request $request, Note $note, ?NoteShare $share = null): array
+    {
+        $result = self::present($request, $note, false, $share);
+
+        if ($note->password_hash !== null) {
+            $result['preview'] = '';
+            $result['is_unlocked'] = false;
+            return $result;
+        }
+
+        $result['content'] = $note->content;
+        $result['content_version'] = (int) $note->content_version;
+
+        return $result;
+    }
 }
