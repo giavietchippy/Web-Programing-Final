@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\LabelController;
+use App\Http\Controllers\NoteAiController;
 use App\Http\Controllers\NoteController;
 use App\Http\Controllers\NotePasswordController;
 use App\Http\Controllers\NoteShareController;
@@ -21,6 +22,8 @@ Route::middleware(['web', 'auth', 'auth.session'])->group(function () {
     Route::delete('notes/{note}/password', [NotePasswordController::class, 'disable'])->whereNumber('note');
     Route::patch('notes/{note}/pin', [NoteController::class, 'pin'])->whereNumber('note');
     Route::put('notes/{note}/labels', [NoteController::class, 'syncLabels'])->whereNumber('note');
+    Route::post('notes/{note}/ai/summary', [NoteAiController::class, 'summary'])->middleware('throttle:10,1')->whereNumber('note');
+    Route::post('notes/{note}/ai/ask', [NoteAiController::class, 'ask'])->middleware('throttle:10,1')->whereNumber('note');
     Route::apiResource('notes', NoteController::class);
     Route::apiResource('labels', LabelController::class)->except('show');
 });
