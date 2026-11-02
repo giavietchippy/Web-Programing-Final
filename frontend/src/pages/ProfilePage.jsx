@@ -35,11 +35,11 @@ export default function ProfilePage() {
       setFile(null)
       setPreview(null)
       setInputKey((k) => k + 1)
-      setMessage('Profile updated.')
+      setMessage('Đã cập nhật hồ sơ.')
     } catch (err) {
       setErrors(
         err.response?.data?.errors || {
-          general: ['Something went wrong. Please try again.'],
+          general: ['Vấn đề nào đó không ổn r, thử lại đi'],
         }
       )
     } finally {
@@ -49,7 +49,7 @@ export default function ProfilePage() {
 
   return (
     <main style={{ maxWidth: 420, margin: '3rem auto', padding: '0 1rem' }}>
-      <h1>Profile</h1>
+      <h1>Hồ sơ</h1>
 
       <div style={{ marginBottom: '1rem' }}>
         <Avatar src={preview || user.avatar_url} name={user.name} size={96} />
@@ -61,7 +61,7 @@ export default function ProfilePage() {
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="name" style={{ display: 'block' }}>
-            Display name
+            Tên hiển thị
           </label>
           <input
             id="name"
@@ -75,7 +75,7 @@ export default function ProfilePage() {
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="avatar" style={{ display: 'block' }}>
-            Avatar (JPG, PNG, GIF or WebP, up to 2 MB)
+            Ảnh đại diện (JPG, PNG, GIF hoặc WebP, giới hạn tới 2 MB)
           </label>
           <input
             key={inputKey}
@@ -89,12 +89,12 @@ export default function ProfilePage() {
         {errors.general && <p role="alert">{errors.general[0]}</p>}
         {message && <p role="status">{message}</p>}
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Saving...' : 'Save profile'}
+          {submitting ? 'Đang lưu...' : 'Lưu hồ sơ'}
         </button>
       </form>
 
       <p>
-        <Link to="/">Back to home</Link>
+        <Link to="/">Trở về trang chủ</Link>
       </p>
     </main>
   )

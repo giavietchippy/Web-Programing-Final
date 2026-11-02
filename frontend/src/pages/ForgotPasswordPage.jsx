@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
     } catch (err) {
       setError(
         err.response?.data?.errors?.email?.[0] ||
-          'Something went wrong. Please try again.'
+          'Nhập sai rồi, thử lại đi'
       )
     } finally {
       setSubmitting(false)
@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <main style={{ maxWidth: 360, margin: '4rem auto', padding: '0 1rem' }}>
-      <h1>Forgot password</h1>
+      <h1>Quên mật khẩu</h1>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="email" style={{ display: 'block' }}>
@@ -47,11 +47,11 @@ export default function ForgotPasswordPage() {
         {message && <p role="status">{message}</p>}
         {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Sending...' : 'Send reset link'}
+          {submitting ? 'Đang gửi...' : 'Gửi đường dẫn đổi lại mật khẩu'}
         </button>
       </form>
       <p>
-        <Link to="/login">Back to login</Link>
+        <Link to="/login">Trở về trang chủ</Link>
       </p>
     </main>
   )

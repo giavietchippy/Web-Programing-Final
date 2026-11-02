@@ -180,3 +180,37 @@
     min-height: 2.75rem;
   }
 }
+
+/* Áp dụng màu nền, màu chữ và viền cho card ghi chú dạng Grid */
+.note-card {
+  background-color: var(--note-bg) !important;
+  color: var(--note-text) !important;
+  border-color: var(--app-border) !important;
+  font-size: var(--note-font-size);
+}
+
+/* Áp dụng cho ghi chú dạng List (danh sách dòng) */
+.note-list-item {
+  background-color: var(--note-bg) !important;
+  color: var(--note-text) !important;
+  border-color: var(--app-border) !important;
+  font-size: var(--note-font-size);
+}
+
+/* Áp dụng cỡ chữ cho phần xem trước nội dung note */
+.note-card .note-preview-clamp,
+.note-list-item .text-truncate {
+  font-size: var(--note-font-size);
+}
+
+/* Tránh để Bootstrap text-body-secondary làm tối/chìm chữ trên nền màu */
+.note-card .text-body-secondary,
+.note-list-item .text-body-secondary {
+  color: var(--note-text) !important;
+  opacity: 0.75;
+}
+
+/* Áp dụng cỡ chữ cho khung soạn thảo ghi chú (Editor) */
+.note-editor-textarea {
+  font-size: var(--note-font-size) !important;
+}
