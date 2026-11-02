@@ -22,6 +22,8 @@ services:
       APP_NAME: Notes
       APP_ENV: local
       APP_DEBUG: "true"
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       APP_KEY: ${APP_KEY}
       APP_URL: http://localhost:${WEB_PORT:-8080}
       LOG_CHANNEL: stderr

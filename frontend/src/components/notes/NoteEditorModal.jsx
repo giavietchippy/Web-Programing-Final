@@ -7,6 +7,7 @@ import NotePasswordModal from './NotePasswordModal'
 import { relockNote } from '../../api/notePasswords'
 import { markSharedNoteSeen } from '../../api/noteShares'
 import ShareNoteModal from './ShareNoteModal'
+import NoteAiPanel from './NoteAiPanel'
 import { getRealtimeEcho } from '../../api/realtime'
 
 // Thời gian chờ sau lần gõ cuối cùng trước khi tự lưu
@@ -388,6 +389,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
               />}
             </Form>
           )}
+          {loadStatus === 'ready' && currentId && <NoteAiPanel noteId={currentId} />}
         </Modal.Body>
 
         <Modal.Footer>
