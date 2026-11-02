@@ -2,9 +2,9 @@
 Notes application (Laravel + React), run locally with Docker Compose
 
 TEAM
-- <student id> - <full name>
-- <student id> - <full name>
-- <student id> - <full name>
+- 524H0041 - Trần Đỗ Quốc Anh
+- 524H0075 - Nguyễn Gia Việt
+- 524H0139 - Phan Hoài An
 
 DEPLOYMENT
 The application is not hosted online. It runs on the instructor's machine
