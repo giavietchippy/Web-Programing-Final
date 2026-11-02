@@ -9,7 +9,7 @@ return [
             'path' => env('REVERB_SERVER_PATH', ''),
             'hostname' => env('REVERB_HOST'),
             'options' => ['tls' => []],
-            'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 10_000),
+            'max_request_size' => env('REVERB_MAX_REQUEST_SIZE', 1_000_000),
             'scaling' => [
                 'enabled' => false,
                 'channel' => 'reverb',
@@ -42,6 +42,9 @@ return [
             'allowed_origins' => ['*'], // Local development; cần giới hạn domain khi triển khai thật.
             'ping_interval' => 60,
             'activity_timeout' => 30,
+            'max_message_size' => env('REVERB_APP_MAX_MESSAGE_SIZE', 1_000_000),
+            'max_connections' => env('REVERB_APP_MAX_CONNECTIONS'),
+            'accept_client_events_from' => env('REVERB_APP_ACCEPT_CLIENT_EVENTS_FROM', 'members'),
         ]],
     ],
 ];
