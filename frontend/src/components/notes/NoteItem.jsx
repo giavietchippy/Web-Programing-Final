@@ -12,7 +12,15 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
 export default function NoteItem({ note, layout, onOpen, onTogglePin, pinBusy }) {
   const updated = dateFormatter.format(new Date(note.updated_at))
   const open = () => onOpen(note.id)
-  const pinButton = (
+  const isReceived = note.permission !== 'owner'
+  const sharingInfo = isReceived ? (
+    <div className="small text-body-secondary">
+      Từ: {note.owner?.name} ({note.owner?.email}) · {note.permission === 'edit' ? 'Có thể sửa' : 'Chỉ xem'}
+      {note.shared_at && <> · Chia sẻ: {new Date(note.shared_at).toLocaleString('vi-VN')}</>}
+      {note.is_new && <span className="badge text-bg-info ms-2">Mới</span>}
+    </div>
+  ) : null
+  const pinButton = !isReceived && (
     <PinButton
       pinned={note.is_pinned}
       busy={pinBusy}
@@ -32,7 +40,8 @@ export default function NoteItem({ note, layout, onOpen, onTogglePin, pinBusy })
             <NoteStatusIcons note={note} />
           </div>
           <div className="text-body-secondary small text-truncate">{note.preview}</div>
-          <NoteLabels labels={note.labels} />   
+          {sharingInfo}
+          {!isReceived && <NoteLabels labels={note.labels} />}   
           {/* Trên điện thoại hiện thời gian ngay dưới nội dung */}
           <small className="text-body-secondary d-sm-none">{updated}</small>
         </div>
@@ -55,7 +64,8 @@ export default function NoteItem({ note, layout, onOpen, onTogglePin, pinBusy })
           {pinButton}
         </div>
         <Card.Text className="note-preview-clamp text-body-secondary">{note.preview}</Card.Text>
-        <NoteLabels labels={note.labels} />
+        {sharingInfo}
+        {!isReceived && <NoteLabels labels={note.labels} />}
       </Card.Body>
       <Card.Footer className="bg-transparent small text-body-secondary">{updated}</Card.Footer>
     </Card>

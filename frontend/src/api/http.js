@@ -31,7 +31,9 @@ export async function request(url, { method = 'GET', body, signal } = {}) {
   const json = await res.json().catch(() => null)
   if (!res.ok) {
     const firstFieldError = json?.errors ? Object.values(json.errors)[0]?.[0] : null
-    throw new Error(firstFieldError || json?.message || `Có lỗi xảy ra (HTTP ${res.status})`)
+    const error = new Error(firstFieldError || json?.message || `Có lỗi xảy ra (HTTP ${res.status})`)
+    error.status = res.status
+    throw error
   }
   return json
 }

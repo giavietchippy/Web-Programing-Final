@@ -21,8 +21,10 @@ export async function createNote({ title, content }) {
   return json.data
 }
 
-export async function updateNote(id, { title, content }) {
-  const json = await request(`/api/notes/${id}`, { method: 'PATCH', body: { title, content } })
+export async function updateNote(id, { title, content, content_version, client_id }) {
+  const json = await request(`/api/notes/${id}`, {
+    method: 'PATCH', body: { title, content, content_version, client_id },
+  })
   return json.data
 }
 
