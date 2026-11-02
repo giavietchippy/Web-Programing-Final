@@ -210,14 +210,14 @@ export default function NotesPage() {
 
   return (
     <Container className="py-4" >
-      <h1 className="h3 mb-3">{section === 'my' ? 'Ghi chú của tôi' : 'Shared with Me — Được chia sẻ'}</h1>
+      <h1 className="h3 mb-3">{section === 'my' ? 'Ghi chú của tôi' : 'Chia sẻ bạn bè — Được chia sẻ'}</h1>
       <div className="d-flex gap-2 mb-3">
         <Button variant={section === 'my' ? 'primary' : 'outline-primary'} onClick={() => {
           setSection('my'); setStatus('loading'); setQuery('')
         }}>Ghi chú của tôi</Button>
         <Button variant={section === 'shared' ? 'primary' : 'outline-primary'} onClick={() => {
           setSection('shared'); setStatus('loading'); setQuery('')
-        }}>Shared with Me</Button>
+        }}>Chia sẻ bạn bè</Button>
       </div>
       {offline && (
         <Alert variant="warning" className="d-flex align-items-center gap-2">

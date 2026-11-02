@@ -12,28 +12,27 @@ export default function Layout() {
       </a>
       <header className="app-header">
         <Link to="/" className="app-brand">
-          Notes
+          Ghi chú
         </Link>
         <nav aria-label="Main" className="app-nav">
           <NavLink to="/" end>
-            Home
+            Trang chủ
           </NavLink>
-          <NavLink to="/profile">Profile</NavLink>
-          <NavLink to="/preferences">Preferences</NavLink>
-          <NavLink to="/change-password">Change password</NavLink>
+          <NavLink to="/profile">Hồ sơ</NavLink>
+          <NavLink to="/preferences">Giao diện</NavLink>
+          <NavLink to="/change-password">Thay đổi mật khẩu</NavLink>
         </nav>
         <div className="app-user">
           <Avatar src={user.avatar_url} name={user.name} size={36} />
           <span className="app-user-name">{user.name}</span>
           <button type="button" onClick={logout}>
-            Log out
+            Đăng xuất
           </button>
         </div>
       </header>
       {!user.email_verified_at && (
         <div role="alert" className="app-banner">
-          Your account is not activated yet. Please check your email and click
-          the activation link.
+          Mật khẩu chưa được kích hoạt. Vui lòng vào email và click đường dẫn xác nhận.
         </div>
       )}
       <div id="content" tabIndex={-1}>

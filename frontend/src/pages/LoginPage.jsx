@@ -22,7 +22,7 @@ export default function LoginPage() {
     } catch (err) {
       setError(
         err.response?.data?.errors?.email?.[0] ||
-          'Login failed. Please try again.'
+          'Đăng nhập thất bại, xin vui lòng thử lại.'
       )
     } finally {
       setSubmitting(false)
@@ -31,7 +31,7 @@ export default function LoginPage() {
 
   return (
     <main style={{ maxWidth: 360, margin: '4rem auto', padding: '0 1rem' }}>
-      <h1>Log in</h1>
+      <h1>Đăng nhập</h1>
       {location.state?.message && (
         <p role="status">{location.state.message}</p>
       )}
@@ -52,7 +52,7 @@ export default function LoginPage() {
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="password" style={{ display: 'block' }}>
-            Password
+            Mật khẩu
           </label>
           <input
             id="password"
@@ -65,15 +65,15 @@ export default function LoginPage() {
           />
         </div>
         {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Logging in...' : 'Log in'}
+        <button type="Xác nhận" disabled={submitting}>
+          {submitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
         </button>
       </form>
       <p>
-        <Link to="/forgot-password">Forgot password?</Link>
+        <Link to="/forgot-password">Quên mật khẩu?</Link>
       </p>
       <p>
-        No account? <Link to="/register">Create an account</Link>
+        Không có tài khoản? <Link to="/register">Tạo tài khoản</Link>
       </p>
     </main>
   )
