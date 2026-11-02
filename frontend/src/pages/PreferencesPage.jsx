@@ -4,20 +4,20 @@ import api from '../api'
 import { useAuth } from '../auth/AuthContext'
 
 const THEMES = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Trắng' },
+  { value: 'dark', label: 'Đen' },
 ]
 const FONT_SIZES = [
-  { value: 'small', label: 'Small' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'large', label: 'Large' },
+  { value: 'small', label: 'Nhỏ' },
+  { value: 'medium', label: 'Vừa' },
+  { value: 'large', label: 'Lớn' },
 ]
 const NOTE_COLORS = [
-  { value: 'default', label: 'Default' },
-  { value: 'yellow', label: 'Yellow' },
-  { value: 'green', label: 'Green' },
-  { value: 'blue', label: 'Blue' },
-  { value: 'pink', label: 'Pink' },
+  { value: 'default', label: 'Mặc định' },
+  { value: 'yellow', label: 'Vàng' },
+  { value: 'green', label: 'Xanh lá' },
+  { value: 'blue', label: 'Xanh dương' },
+  { value: 'pink', label: 'Hồng' },
 ]
 
 function RadioGroup({ legend, name, options, value, onChange }) {
@@ -61,11 +61,11 @@ export default function PreferencesPage() {
         note_color: noteColor,
       })
       setUser(res.data)
-      setMessage('Preferences saved.')
+      setMessage('Giao diện đã được lưu.')
     } catch (err) {
       setErrors(
         err.response?.data?.errors || {
-          general: ['Something went wrong. Please try again.'],
+          general: ['Bị lỗi r, thử lại đi'],
         }
       )
     } finally {
@@ -75,10 +75,10 @@ export default function PreferencesPage() {
 
   return (
     <main style={{ maxWidth: 480, margin: '3rem auto', padding: '0 1rem' }}>
-      <h1>Preferences</h1>
+      <h1>Giao diện</h1>
       <form onSubmit={handleSubmit}>
         <RadioGroup
-          legend="Theme"
+          legend="Tiêu đề"
           name="theme"
           options={THEMES}
           value={theme}
@@ -87,7 +87,7 @@ export default function PreferencesPage() {
         {errors.theme && <p role="alert">{errors.theme[0]}</p>}
 
         <RadioGroup
-          legend="Note font size"
+          legend="Kích thước ghi chú"
           name="font_size"
           options={FONT_SIZES}
           value={fontSize}
@@ -96,7 +96,7 @@ export default function PreferencesPage() {
         {errors.font_size && <p role="alert">{errors.font_size[0]}</p>}
 
         <RadioGroup
-          legend="Note color"
+          legend="Màu ghi chú"
           name="note_color"
           options={NOTE_COLORS}
           value={noteColor}
@@ -117,18 +117,18 @@ export default function PreferencesPage() {
             margin: '1rem 0',
           }}
         >
-          <strong>Sample note</strong>
-          <p>This is how your notes will look.</p>
+          <strong>Nháp ví dụ</strong>
+          <p>Bạn sẽ thấy ghi chú của bạn giống như thế này.</p>
         </div>
 
         {errors.general && <p role="alert">{errors.general[0]}</p>}
         {message && <p role="status">{message}</p>}
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Saving...' : 'Save preferences'}
+          {submitting ? 'Đang lưu...' : 'Lưu giao diện'}
         </button>
       </form>
       <p>
-        <Link to="/">Back to home</Link>
+        <Link to="/">Trở về trang chủ</Link>
       </p>
     </main>
   )

@@ -25,12 +25,12 @@ export default function ResetPasswordPage() {
       })
       navigate('/login', {
         replace: true,
-        state: { message: 'Password reset successfully. Please log in.' },
+        state: { message: 'Đặt lại mật khẩu thành công. Vui lòng đăng nhập.' },
       })
     } catch (err) {
       setErrors(
         err.response?.data?.errors || {
-          general: ['Something went wrong. Please try again.'],
+          general: ['Đã xảy ra lỗi. Vui lòng thử lại.'],
         }
       )
     } finally {
@@ -40,12 +40,12 @@ export default function ResetPasswordPage() {
 
   return (
     <main style={{ maxWidth: 360, margin: '4rem auto', padding: '0 1rem' }}>
-      <h1>Set a new password</h1>
-      <p>Account: {email}</p>
+      <h1>Đặt mật khẩu mới</h1>
+      <p>Tài khoản: {email}</p>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="password" style={{ display: 'block' }}>
-            New password
+            Mật khẩu mới
           </label>
           <input
             id="password"
@@ -60,7 +60,7 @@ export default function ResetPasswordPage() {
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="passwordConfirmation" style={{ display: 'block' }}>
-            Confirm new password
+            Xác nhận mật khẩu mới
           </label>
           <input
             id="passwordConfirmation"
@@ -76,11 +76,11 @@ export default function ResetPasswordPage() {
         {errors.token && <p role="alert">{errors.token[0]}</p>}
         {errors.general && <p role="alert">{errors.general[0]}</p>}
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Saving...' : 'Reset password'}
+          {submitting ? 'Đang lưu...' : 'Đặt lại mật khẩu'}
         </button>
       </form>
       <p>
-        <Link to="/login">Back to login</Link>
+        <Link to="/login">Quay lại trang đăng nhập</Link>
       </p>
     </main>
   )

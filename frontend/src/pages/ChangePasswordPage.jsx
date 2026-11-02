@@ -28,7 +28,7 @@ export default function ChangePasswordPage() {
     } catch (err) {
       setErrors(
         err.response?.data?.errors || {
-          general: ['Something went wrong. Please try again.'],
+          general: ['Nhập sai rồi, thử lại đi'],
         }
       )
     } finally {
@@ -38,11 +38,11 @@ export default function ChangePasswordPage() {
 
   return (
     <main style={{ maxWidth: 360, margin: '4rem auto', padding: '0 1rem' }}>
-      <h1>Change password</h1>
+      <h1>Thay đổi mật khẩu</h1>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="currentPassword" style={{ display: 'block' }}>
-            Current password
+            Mật khẩu hiện tại
           </label>
           <input
             id="currentPassword"
@@ -59,7 +59,7 @@ export default function ChangePasswordPage() {
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="password" style={{ display: 'block' }}>
-            New password
+            Mật khẩu mới
           </label>
           <input
             id="password"
@@ -74,7 +74,7 @@ export default function ChangePasswordPage() {
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="passwordConfirmation" style={{ display: 'block' }}>
-            Confirm new password
+            Nhập lại mật khẩu mới
           </label>
           <input
             id="passwordConfirmation"
@@ -89,11 +89,11 @@ export default function ChangePasswordPage() {
         {errors.general && <p role="alert">{errors.general[0]}</p>}
         {message && <p role="status">{message}</p>}
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Saving...' : 'Change password'}
+          {submitting ? 'Đang lưu mật khẩu...' : 'Thay đổi mật khẩu'}
         </button>
       </form>
       <p>
-        <Link to="/">Back to home</Link>
+        <Link to="/">Trở về trang chủ</Link>
       </p>
     </main>
   )

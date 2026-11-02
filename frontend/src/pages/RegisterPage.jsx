@@ -23,7 +23,7 @@ export default function RegisterPage() {
     } catch (err) {
       setErrors(
         err.response?.data?.errors || {
-          general: ['Registration failed. Please try again.'],
+          general: ['Đăng ký lỗi, xin thử lại'],
         }
       )
     } finally {
@@ -33,10 +33,10 @@ export default function RegisterPage() {
 
   return (
     <main style={{ maxWidth: 360, margin: '4rem auto', padding: '0 1rem' }}>
-      <h1>Create an account</h1>
+      <h1>Tạo tài khoản mới</h1>
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="name" style={{ display: 'block' }}>Display name</label>
+          <label htmlFor="name" style={{ display: 'block' }}>Tên hiển thị</label>
           <input
             id="name"
             type="text"
@@ -62,7 +62,7 @@ export default function RegisterPage() {
           {errors.email && <p role="alert">{errors.email[0]}</p>}
         </div>
         <div style={{ marginBottom: '1rem' }}>
-          <label htmlFor="password" style={{ display: 'block' }}>Password</label>
+          <label htmlFor="password" style={{ display: 'block' }}>Mật khẩu</label>
           <input
             id="password"
             type="password"
@@ -76,7 +76,7 @@ export default function RegisterPage() {
         </div>
         <div style={{ marginBottom: '1rem' }}>
           <label htmlFor="passwordConfirmation" style={{ display: 'block' }}>
-            Confirm password
+            Xác nhận mật khẩu
           </label>
           <input
             id="passwordConfirmation"
@@ -90,11 +90,11 @@ export default function RegisterPage() {
         </div>
         {errors.general && <p role="alert">{errors.general[0]}</p>}
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Creating account...' : 'Create account'}
+          {submitting ? 'Đang tạo tài khoản mới...' : 'Tạo tài khoản mới'}
         </button>
       </form>
       <p>
-        Already have an account? <Link to="/login">Log in</Link>
+        Có sẵn tại khoản? <Link to="/login">Đăng nhập</Link>
       </p>
     </main>
   )
