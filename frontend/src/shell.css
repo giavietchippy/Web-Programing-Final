@@ -76,6 +76,7 @@ select {
   padding: 0.75rem 1rem;
   background: var(--app-surface);
   border-bottom: 1px solid var(--app-border);
+  color: var(--app-text); /* Thêm dòng này để toàn bộ chữ trong header nhận màu theme */
 }
 .app-brand {
   font-size: 1.25rem;
@@ -109,11 +110,12 @@ select {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.app-banner {
-  padding: 0.75rem 1rem;
-  background: #fff3cd;
-  color: #5c4400;
-  border-bottom: 1px solid #e6c767;
+.app-user-name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-text); /* Đảm bảo tên luôn nhận màu trắng trong dark mode */
 }
 
 /* Toasts */
