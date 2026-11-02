@@ -80,7 +80,7 @@ export async function loadLabels() {
 }
 
 // Một ghi chú đầy đủ cho màn hình sửa. Đọc từ bản lưu khi offline hoặc khi nó còn thay đổi chưa gửi.
-export async function loadNote(id, signal) {
+/**export async function loadNote(id, signal) {
   await syncOutbox().catch(() => {})
   const realId = await resolveNoteId(id)
 
@@ -95,6 +95,33 @@ export async function loadNote(id, signal) {
   const cached = await readNoteById(realId).catch(() => null)
   if (!cached || cached.content === undefined) {
     throw new Error('Ghi chú này chưa có sẵn để xem khi offline.')
+  }
+  return { ...cached, offline: true }
+}*/
+
+// Chờ tối đa ms mili giây; lỗi hoặc quá hạn thì trả về fallback, không bao giờ treo
+const within = (promise, ms, fallback) =>
+  Promise.race([
+    Promise.resolve(promise).catch(() => fallback),
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ])
+
+export async function loadNote(id, signal) {
+  await within(syncOutbox(), 3000)
+  const realId = await within(resolveNoteId(id), 1500, id)
+  const pending = realId >= 0 ? await within(hasPendingFor(realId), 1500, false) : false
+
+  if (realId >= 0 && !pending) {
+    try {
+      return await getNote(realId, withTimeout(signal))
+    } catch (err) {
+      if (err?.name === 'AbortError' || !isConnectionError(err)) throw err
+    }
+  }
+
+  const cached = await within(readNoteById(realId), 3000, null)
+  if (!cached || cached.content === undefined) {
+    throw new Error('Ghi chú này chưa có sẵn để xem khi offline.', { cause: new Error('thiếu bản lưu') })
   }
   return { ...cached, offline: true }
 }

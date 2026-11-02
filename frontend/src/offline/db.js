@@ -36,7 +36,7 @@ export function setOfflineUser(userId, { purge = true } = {}) {
   if (purge || userId) purgeOtherUsers(userId)
 }
 
-export function getDb() {
+/**export function getDb() {
   if (!currentUserId) {
     return Promise.reject(new Error('Chưa có người dùng cho dữ liệu offline.'))
   }
@@ -59,6 +59,40 @@ export function getDb() {
         dbPromise = null
       },
     }).catch((err) => {
+      dbPromise = null
+      throw err
+    })
+  }
+  return dbPromise
+}*/
+
+export function getDb() {
+  if (!currentUserId) {
+    return Promise.reject(new Error('Chưa có người dùng cho dữ liệu offline.'))
+  }
+  if (!dbPromise) {
+    const opening = openDB(`${PREFIX}${currentUserId}`, DB_VERSION, {
+      upgrade(db) {
+        for (const name of ['notes', 'shared', 'labels']) {
+          if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
+        }
+        if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta')
+        if (!db.objectStoreNames.contains('outbox')) {
+          db.createObjectStore('outbox', { keyPath: 'seq', autoIncrement: true })
+        }
+      },
+      blocking(_current, _blocked, event) {
+        event.target.close()
+        dbPromise = null // kết nối đã đóng, lần sau phải mở lại
+      },
+      terminated() {
+        dbPromise = null
+      },
+    })
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Kho dữ liệu offline chưa sẵn sàng.')), 4000),
+    )
+    dbPromise = Promise.race([opening, timeout]).catch((err) => {
       dbPromise = null
       throw err
     })

@@ -64,7 +64,7 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
   }, [onSaved])
 
   // Chế độ sửa: tải nội dung đầy đủ của ghi chú
-  useEffect(() => {
+  /**useEffect(() => {
     if (!noteId) return
     const controller = new AbortController()
     loadNote(noteId, controller.signal)
@@ -89,7 +89,56 @@ export default function NoteEditorModal({ noteId, labels, onClose, onSaved, onDe
         setLoadStatus('error')
       })
     return () => controller.abort()
-  }, [noteId])
+  }, [noteId])*/
+
+  useEffect(() => {
+    if (!noteId) return
+    const controller = new AbortController()
+    let active = true
+
+    const watchdog = setTimeout(() => {
+      if (!active) return
+      setLoadError('Tải ghi chú quá lâu (hơn 15 giây). Hãy tải lại trang.')
+      setLoadStatus('error')
+    }, 15000)
+
+    loadNote(noteId, controller.signal)
+      .then((note) => {
+        if (!active) return
+        try {
+          latestRef.current = { title: note.title, content: note.content }
+          savedRef.current = { title: note.title, content: note.content }
+          setTitle(note.title)
+          setContent(note.content)
+          setLabelIds((note.labels ?? []).map((l) => l.id))
+          setIsLocked(note.is_locked)
+          setPermission(note.permission ?? 'owner')
+          setRealtimeKey(note.realtime_key ?? null)
+          versionRef.current = note.content_version ?? 0
+          if (note.permission !== 'owner' && !note.offline) markSharedNoteSeen(note.id).catch(() => {})
+          if (note.offline) {
+            setOfflineMode(true)
+            if (note.permission !== 'owner') setPermission('view')
+          }
+          setLoadStatus('ready')
+        } catch (err) {
+          setLoadError(`Lỗi xử lý ghi chú: ${err.message}`)
+          setLoadStatus('error')
+        }
+      })
+      .catch((err) => {
+        if (!active || err.name === 'AbortError') return
+        setLoadError(err.message)
+        setLoadStatus('error')
+      })
+      .finally(() => clearTimeout(watchdog))
+
+    return () => {
+      active = false
+      clearTimeout(watchdog)
+      controller.abort()
+    }
+  }, [noteId])  
 
   // Cập nhật từ người đang sửa cùng ghi chú; không ghi đè bản nháp cục bộ.
   const applyRemote = useCallback((payload) => {
