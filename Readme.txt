@@ -24,6 +24,7 @@ HOW TO RUN
 2. Create the settings file:
      Windows:        copy .env.example .env
      Linux / macOS:  cp .env.example .env
+* After create .env file, paste API key from https://aistudio.google.com/api-keys to "GEMINI_API_KEY=" in .env file
 3. Build and start everything:
      docker compose up --build
    The first run takes several minutes. It is ready when the log stops
